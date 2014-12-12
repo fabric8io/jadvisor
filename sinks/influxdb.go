@@ -3,6 +3,7 @@ package sinks
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -61,6 +62,24 @@ func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, con
 	columns = append(columns, colContainerName)
 	values = append(values, containerName)
 
+	columns = append(columns, colHeapUsageCommitted)
+	values = append(values, stat.Memory.HeapUsage.Committed)
+	columns = append(columns, colHeapUsageInit)
+	values = append(values, stat.Memory.HeapUsage.Init)
+	columns = append(columns, colHeapUsageMax)
+	values = append(values, stat.Memory.HeapUsage.Max)
+	columns = append(columns, colHeapUsageUsed)
+	values = append(values, stat.Memory.HeapUsage.Used)
+
+	columns = append(columns, colNonHeapUsageCommitted)
+	values = append(values, stat.Memory.NonHeapUsage.Committed)
+	columns = append(columns, colNonHeapUsageInit)
+	values = append(values, stat.Memory.NonHeapUsage.Init)
+	columns = append(columns, colNonHeapUsageMax)
+	values = append(values, stat.Memory.NonHeapUsage.Max)
+	columns = append(columns, colNonHeapUsageUsed)
+	values = append(values, stat.Memory.NonHeapUsage.Used)
+
 	return
 }
 
@@ -116,7 +135,7 @@ func (self *InfluxdbSink) StoreData(ip Data) error {
 
 func NewInfluxdbSink() (Sink, error) {
 	config := &influxdb.ClientConfig{
-		Host:     *argDbHost,
+		Host:     os.ExpandEnv(*argDbHost),
 		Username: *argDbUsername,
 		Password: *argDbPassword,
 		Database: *argDbName,

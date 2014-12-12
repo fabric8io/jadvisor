@@ -24,6 +24,8 @@ func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
 		Name:       pod.Name,
 		ID:         pod.UID,
 		PodIP:      pod.Status.PodIP,
+		Hostname:   pod.Status.Host,
+		Status:     string(pod.Status.Phase),
 		Labels:     make(map[string]string, 0),
 		Containers: make([]*Container, 0),
 	}
