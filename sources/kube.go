@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -122,7 +123,7 @@ func newKubeSource() (*KubeSource, error) {
 		return nil, fmt.Errorf("kubernetes_master flag not specified")
 	}
 	kubeClient := kube_client.NewOrDie(&kube_client.Config{
-		Host:     "http://" + *argMaster,
+		Host:     "http://" + os.ExpandEnv(*argMaster),
 		Version:  "v1beta1",
 		Insecure: true,
 	})
