@@ -27,6 +27,20 @@ type Container struct {
 	Stats       *JolokiaStats `json:"stats,omitempty"`
 }
 
+type JolokiaRequestType string
+
+const (
+	Search JolokiaRequestType = "search"
+	Read   JolokiaRequestType = "read"
+)
+
+type JolokiaRequest struct {
+	Type      JolokiaRequestType `json:"type"`
+	MBean     string             `json:"mbean"`
+	Attribute string             `json:"attribute,omitempty"`
+	Path      string             `json:"path,omitempty"`
+}
+
 type JolokiaResponse struct {
 	Status    uint32
 	Timestamp uint32

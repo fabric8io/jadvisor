@@ -1,11 +1,11 @@
 package sources
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
@@ -67,21 +67,38 @@ func (self *KubeSource) getPods() ([]Pod, error) {
 }
 
 func (self *KubeSource) getStatsFromJolokia(jolokiaUrl string) (*JolokiaStats, error) {
-	var jolokiaResponse JolokiaResponse
-	url := jolokiaUrl + filepath.Join("/jolokia/read", "java.lang:type=Memory")
+	url := jolokiaUrl + "/jolokia/"
 	glog.V(2).Infof("Requesting jolokia stats from %s", url)
-	req, err := http.NewRequest("GET", url, nil)
+
+	jolokiaRequests := []JolokiaRequest{
+		JolokiaRequest{
+			Type:  Read,
+			MBean: "java.lang:type=Memory",
+		},
+	}
+
+	reqBody, err := json.Marshal(jolokiaRequests)
 	if err != nil {
 		return &JolokiaStats{}, err
 	}
-	err = PostRequestAndGetValue(&http.Client{}, req, &jolokiaResponse)
+
+	glog.V(2).Infof("Sending Jolokia request: %v", string(reqBody))
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return &JolokiaStats{}, err
+	}
+	var jolokiaResponses []JolokiaResponse
+	err = PostRequestAndGetValue(&http.Client{}, req, &jolokiaResponses)
 	if err != nil {
 		glog.Errorf("failed to get stats from jolokia url: %s - %s\n", url, err)
 		return &JolokiaStats{}, nil
 	}
 
-	glog.V(2).Infof("Received jolokia response: %v", jolokiaResponse)
+	glog.V(2).Infof("Received jolokia response: %v", jolokiaResponses)
 
+	// Retrieve memory mbean stats
+	jolokiaResponse := jolokiaResponses[0]
 	marshalledValue, _ := json.Marshal(jolokiaResponse.Value)
 	glog.V(2).Infof("Marshalled value: %v", string(marshalledValue[:]))
 
