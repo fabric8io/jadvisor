@@ -69,6 +69,8 @@ func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, con
 				columns = append(columns, fmt.Sprintf("%s.%s", key, k))
 				values = append(values, v)
 			}
+		case []interface{}:
+			glog.V(2).Infof("Storing arrays is unimplemented at the moment - not storing %s: %v", key, value)
 		default:
 			columns = append(columns, key)
 			values = append(values, value)

@@ -71,11 +71,11 @@ func (self *KubeSource) getStatsFromJolokia(jolokiaUrl string) (*JolokiaStats, e
 	glog.V(2).Infof("Requesting jolokia stats from %s", url)
 
 	jolokiaRequests := []JolokiaRequest{
-		JolokiaRequest{
-			Type:      Read,
-			MBean:     "java.lang:type=Memory",
-			Attribute: []string{"HeapMemoryUsage", "NonHeapMemoryUsage"},
-		},
+		JVMRequest,
+	}
+
+	if amqRequests, err := GetAMQRequests(url); err == nil {
+		jolokiaRequests = append(jolokiaRequests, amqRequests...)
 	}
 
 	reqBody, err := json.Marshal(jolokiaRequests)

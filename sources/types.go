@@ -39,9 +39,10 @@ const (
 
 type JolokiaRequest struct {
 	Type      JolokiaRequestType `json:"type"`
-	MBean     string             `json:"mbean"`
+	MBean     string             `json:"mbean,omitempty"`
 	Attribute interface{}        `json:"attribute,omitempty"`
 	Path      string             `json:"path,omitempty"`
+	MaxDepth  uint               `json:"maxDepth,omitempty"`
 }
 
 type JolokiaResponse struct {
