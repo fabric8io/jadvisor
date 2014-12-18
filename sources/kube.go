@@ -72,8 +72,9 @@ func (self *KubeSource) getStatsFromJolokia(jolokiaUrl string) (*JolokiaStats, e
 
 	jolokiaRequests := []JolokiaRequest{
 		JolokiaRequest{
-			Type:  Read,
-			MBean: "java.lang:type=Memory",
+			Type:      Read,
+			MBean:     "java.lang:type=Memory",
+			Attribute: []string{"HeapMemoryUsage", "NonHeapMemoryUsage"},
 		},
 	}
 
@@ -97,17 +98,16 @@ func (self *KubeSource) getStatsFromJolokia(jolokiaUrl string) (*JolokiaStats, e
 
 	glog.V(2).Infof("Received jolokia response: %v", jolokiaResponses)
 
-	// Retrieve memory mbean stats
-	jolokiaResponse := jolokiaResponses[0]
-	marshalledValue, _ := json.Marshal(jolokiaResponse.Value)
-	glog.V(2).Infof("Marshalled value: %v", string(marshalledValue[:]))
+	jolokiaResponseStats := make(map[string]JolokiaValue)
 
-	var memoryStats MemoryStats
-	json.Unmarshal(marshalledValue, &memoryStats)
+	// Retrieve mbean stats
+	for _, jolokiaResponse := range jolokiaResponses {
+		jolokiaResponseStats[jolokiaResponse.Request["mbean"].(string)] = jolokiaResponse.Value
+	}
 
 	jolokiaStats := &JolokiaStats{
-		Timestamp: time.Unix(0, int64(jolokiaResponse.Timestamp)*int64(time.Second)),
-		Memory:    memoryStats,
+		Timestamp: time.Unix(0, int64(jolokiaResponses[0].Timestamp)*int64(time.Second)),
+		Stats:     jolokiaResponseStats,
 	}
 
 	glog.V(2).Infof("Retrieved jolokia stats: %v", jolokiaStats)

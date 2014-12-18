@@ -28,10 +28,10 @@ type InfluxdbSink struct {
 	lastWrite      time.Time
 }
 
-func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, containerName string, stat *sources.JolokiaStats) (columns []string, values []interface{}) {
+func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, containerName string, timestamp time.Time, stats *sources.JolokiaValue) (columns []string, values []interface{}) {
 	// Timestamp
 	columns = append(columns, colTimestamp)
-	values = append(values, stat.Timestamp.Unix())
+	values = append(values, timestamp.Unix())
 
 	if pod != nil {
 		// Pod name
@@ -62,23 +62,18 @@ func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, con
 	columns = append(columns, colContainerName)
 	values = append(values, containerName)
 
-	columns = append(columns, colHeapUsageCommitted)
-	values = append(values, stat.Memory.HeapUsage.Committed)
-	columns = append(columns, colHeapUsageInit)
-	values = append(values, stat.Memory.HeapUsage.Init)
-	columns = append(columns, colHeapUsageMax)
-	values = append(values, stat.Memory.HeapUsage.Max)
-	columns = append(columns, colHeapUsageUsed)
-	values = append(values, stat.Memory.HeapUsage.Used)
-
-	columns = append(columns, colNonHeapUsageCommitted)
-	values = append(values, stat.Memory.NonHeapUsage.Committed)
-	columns = append(columns, colNonHeapUsageInit)
-	values = append(values, stat.Memory.NonHeapUsage.Init)
-	columns = append(columns, colNonHeapUsageMax)
-	values = append(values, stat.Memory.NonHeapUsage.Max)
-	columns = append(columns, colNonHeapUsageUsed)
-	values = append(values, stat.Memory.NonHeapUsage.Used)
+	for key, value := range *stats {
+		switch vv := value.(type) {
+		case map[string]interface{}:
+			for k, v := range vv {
+				columns = append(columns, fmt.Sprintf("%s.%s", key, k))
+				values = append(values, v)
+			}
+		default:
+			columns = append(columns, key)
+			values = append(values, value)
+		}
+	}
 
 	return
 }
@@ -98,8 +93,11 @@ func (self *InfluxdbSink) newSeries(tableName string, columns []string, points [
 func (self *InfluxdbSink) handlePods(pods []sources.Pod) {
 	for _, pod := range pods {
 		for _, container := range pod.Containers {
-			col, val := self.containerStatsToValues(&pod, pod.Hostname, container.Name, container.Stats)
-			self.series = append(self.series, self.newSeries(statsTable, col, val))
+			timestamp := container.Stats.Timestamp
+			for mbean, stats := range container.Stats.Stats {
+				col, val := self.containerStatsToValues(&pod, pod.Hostname, container.Name, timestamp, &stats)
+				self.series = append(self.series, self.newSeries(fmt.Sprintf("%s.%s.%s.%s", pod.Namespace, pod.Name, container.Name, mbean), col, val))
+			}
 		}
 	}
 }

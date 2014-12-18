@@ -32,12 +32,15 @@ type JolokiaRequestType string
 const (
 	Search JolokiaRequestType = "search"
 	Read   JolokiaRequestType = "read"
+	List   JolokiaRequestType = "list"
+	Exec   JolokiaRequestType = "exec"
+	Write  JolokiaRequestType = "write"
 )
 
 type JolokiaRequest struct {
 	Type      JolokiaRequestType `json:"type"`
 	MBean     string             `json:"mbean"`
-	Attribute string             `json:"attribute,omitempty"`
+	Attribute interface{}        `json:"attribute,omitempty"`
 	Path      string             `json:"path,omitempty"`
 }
 
@@ -45,30 +48,17 @@ type JolokiaResponse struct {
 	Status    uint32
 	Timestamp uint32
 	Request   map[string]interface{}
-	Value     map[string]interface{}
+	Value     JolokiaValue
 	Error     string
 }
 
 type JolokiaStats struct {
 	// The time of this stat point.
-	Timestamp time.Time   `json:"timestamp"`
-	Memory    MemoryStats `json:"mem,omitempty"`
+	Timestamp time.Time               `json:"timestamp"`
+	Stats     map[string]JolokiaValue `json:"stats,omitempty"`
 }
 
-type MemoryStats struct {
-	HeapUsage struct {
-		Committed uint64 `json:"committed"`
-		Init      uint64 `json:"init"`
-		Max       int64  `json:"max"`
-		Used      uint64 `json:"used"`
-	} `json:"HeapMemoryUsage"`
-	NonHeapUsage struct {
-		Committed uint64 `json:"committed"`
-		Init      uint64 `json:"init"`
-		Max       int64  `json:"max"`
-		Used      uint64 `json:"used"`
-	} `json:"NonHeapMemoryUsage"`
-}
+type JolokiaValue map[string]interface{}
 
 func newContainer() *Container {
 	return &Container{Stats: &JolokiaStats{}}
