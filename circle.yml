@@ -23,7 +23,8 @@ deployment:
   hub:
     branch: master
     commands:
+      - docker tag jadvisor fabric8/jadvisor
       - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
-      - docker push fabric8io/jadvisor
+      - docker push fabric8/jadvisor
 
 
