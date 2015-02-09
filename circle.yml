@@ -1,0 +1,29 @@
+machine:
+  environment:
+    GOPATH: $GOPATH:$HOME/jadvisor
+  services:
+    - docker
+
+checkout:
+  override:
+    - git clone git@github.com:fabric8io/jadvisor.git $HOME/jadvisor/src/github.com/fabric8io/jadvisor
+
+dependencies:
+  pre:
+    - go get github.com/tools/godep
+  override:
+    - cd $HOME/jadvisor/src/github.com/fabric8io/jadvisor
+    - make
+
+test:
+  override:
+    - godep go test ./...
+
+deployment:
+  hub:
+    branch: master
+    commands:
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+      - docker push fabric8io/jadvisor
+
+
