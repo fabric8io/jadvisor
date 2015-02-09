@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/jimmidyson/jadvisor",
+	"ImportPath": "github.com/fabric8io/jadvisor",
 	"GoVersion": "go1.3.3",
 	"Deps": [
 		{
@@ -28,7 +28,17 @@
 			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
+			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/probe",
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
+		},
+		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/runtime",
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
+		},
+		{
+			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/types",
 			"Comment": "v0.10.0-251-gc9c98ab",
 			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
@@ -48,6 +58,14 @@
 			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Rev": "83f84dc933714d51504ceed59f43ead21d096fe7"
+		},
+		{
+			"ImportPath": "github.com/ghodss/yaml",
+			"Rev": "4fb5c728a37b361a1e971a3bb3d785fcc96b6ef5"
+		},
+		{
 			"ImportPath": "github.com/golang/glog",
 			"Rev": "44145f04b68cf362d9c4df2182967c2275eaefed"
 		},
@@ -62,12 +80,20 @@
 			"Rev": "2181b2561602b5d8841962bb6e981416ecd0587c"
 		},
 		{
+			"ImportPath": "github.com/spf13/pflag",
+			"Rev": "463bdc838f2b35e9307e91d480878bda5fff7232"
+		},
+		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "cbcac7bb8415db9b6cb4d1ebab1dc9afbd688b97"
 		},
 		{
-			"ImportPath": "gopkg.in/v1/yaml",
-			"Rev": "9f9df34309c04878acc86042b16630b0f696e1de"
+			"ImportPath": "gopkg.in/v2/yaml",
+			"Rev": "d466437aa4adc35830964cffc5b5f262c63ddcb4"
+		},
+		{
+			"ImportPath": "speter.net/go/exp/math/dec/inf",
+			"Rev": "42ca6cd68aa922bc3f32f1e056e61b65945d9ad7"
 		}
 	]
 }

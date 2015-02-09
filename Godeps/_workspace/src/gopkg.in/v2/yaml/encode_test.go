@@ -8,7 +8,8 @@ import (
 	"time"
 
 	. "gopkg.in/check.v1"
-	"gopkg.in/yaml.v1"
+	"gopkg.in/yaml.v2"
+	"net"
 )
 
 var marshalIntTest = 123
@@ -247,15 +248,24 @@ var marshalTests = []struct {
 	}, {
 		map[string]string{"a": strings.Repeat("\x90", 54)},
 		"a: !!binary |\n  " + strings.Repeat("kJCQ", 17) + "kJ\n  CQ\n",
-	}, {
-		map[string]interface{}{"a": typeWithGetter{"!!str", "\x80\x81\x82"}},
-		"a: !!binary gIGC\n",
 	},
 
-	// Escaping of tags.
+	// Ordered maps.
 	{
-		map[string]interface{}{"a": typeWithGetter{"foo!bar", 1}},
-		"a: !<foo%21bar> 1\n",
+		&yaml.MapSlice{{"b", 2}, {"a", 1}, {"d", 4}, {"c", 3}, {"sub", yaml.MapSlice{{"e", 5}}}},
+		"b: 2\na: 1\nd: 4\nc: 3\nsub:\n  e: 5\n",
+	},
+
+	// Encode unicode as utf-8 rather than in escaped form.
+	{
+		map[string]string{"a": "你好"},
+		"a: 你好\n",
+	},
+
+	// Support encoding.TextMarshaler.
+	{
+		map[string]net.IP{"a": net.IPv4(1, 2, 3, 4)},
+		"a: 1.2.3.4\n",
 	},
 }
 
@@ -277,12 +287,6 @@ var marshalErrorTests = []struct {
 		inlineB ",inline"
 	}{1, inlineB{2, inlineC{3}}},
 	panic: `Duplicated key 'b' in struct struct \{ B int; .*`,
-}, {
-	value: typeWithGetter{"!!binary", "\x80"},
-	error: "YAML error: explicitly tagged !!binary data must be base64-encoded",
-}, {
-	value: typeWithGetter{"!!float", "\x80"},
-	error: `YAML error: cannot marshal invalid UTF-8 data as !!float`,
 }}
 
 func (s *S) TestMarshalErrors(c *C) {
@@ -294,28 +298,6 @@ func (s *S) TestMarshalErrors(c *C) {
 			c.Assert(err, ErrorMatches, item.error)
 		}
 	}
-}
-
-var marshalTaggedIfaceTest interface{} = &struct{ A string }{"B"}
-
-var getterTests = []struct {
-	data, tag string
-	value     interface{}
-}{
-	{"_:\n  hi: there\n", "", map[interface{}]interface{}{"hi": "there"}},
-	{"_:\n- 1\n- A\n", "", []interface{}{1, "A"}},
-	{"_: 10\n", "", 10},
-	{"_: null\n", "", nil},
-	{"_: !foo BAR!\n", "!foo", "BAR!"},
-	{"_: !foo 1\n", "!foo", "1"},
-	{"_: !foo '\"1\"'\n", "!foo", "\"1\""},
-	{"_: !foo 1.1\n", "!foo", 1.1},
-	{"_: !foo 1\n", "!foo", 1},
-	{"_: !foo 1\n", "!foo", uint(1)},
-	{"_: !foo true\n", "!foo", true},
-	{"_: !foo\n- A\n- B\n", "!foo", []string{"A", "B"}},
-	{"_: !foo\n  A: B\n", "!foo", map[string]string{"A": "B"}},
-	{"_: !foo\n  a: B\n", "!foo", &marshalTaggedIfaceTest},
 }
 
 func (s *S) TestMarshalTypeCache(c *C) {
@@ -334,23 +316,32 @@ func (s *S) TestMarshalTypeCache(c *C) {
 	c.Assert(string(data), Equals, "b: 0\n")
 }
 
-type typeWithGetter struct {
-	tag   string
+var marshalerTests = []struct {
+	data  string
+	value interface{}
+}{
+	{"_:\n  hi: there\n", map[interface{}]interface{}{"hi": "there"}},
+	{"_:\n- 1\n- A\n", []interface{}{1, "A"}},
+	{"_: 10\n", 10},
+	{"_: null\n", nil},
+	{"_: BAR!\n", "BAR!"},
+}
+
+type marshalerType struct {
 	value interface{}
 }
 
-func (o typeWithGetter) GetYAML() (tag string, value interface{}) {
-	return o.tag, o.value
+func (o marshalerType) MarshalYAML() (interface{}, error) {
+	return o.value, nil
 }
 
-type typeWithGetterField struct {
-	Field typeWithGetter "_"
+type marshalerValue struct {
+	Field marshalerType "_"
 }
 
-func (s *S) TestMashalWithGetter(c *C) {
-	for _, item := range getterTests {
-		obj := &typeWithGetterField{}
-		obj.Field.tag = item.tag
+func (s *S) TestMarshaler(c *C) {
+	for _, item := range marshalerTests {
+		obj := &marshalerValue{}
 		obj.Field.value = item.value
 		data, err := yaml.Marshal(obj)
 		c.Assert(err, IsNil)
@@ -358,13 +349,23 @@ func (s *S) TestMashalWithGetter(c *C) {
 	}
 }
 
-func (s *S) TestUnmarshalWholeDocumentWithGetter(c *C) {
-	obj := &typeWithGetter{}
-	obj.tag = ""
+func (s *S) TestMarshalerWholeDocument(c *C) {
+	obj := &marshalerType{}
 	obj.value = map[string]string{"hello": "world!"}
 	data, err := yaml.Marshal(obj)
 	c.Assert(err, IsNil)
 	c.Assert(string(data), Equals, "hello: world!\n")
+}
+
+type failingMarshaler struct{}
+
+func (ft *failingMarshaler) MarshalYAML() (interface{}, error) {
+	return nil, failingErr
+}
+
+func (s *S) TestMarshalerError(c *C) {
+	_, err := yaml.Marshal(&failingMarshaler{})
+	c.Assert(err, Equals, failingErr)
 }
 
 func (s *S) TestSortedOutput(c *C) {
