@@ -19,6 +19,9 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/url"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/version"
@@ -32,16 +35,19 @@ type Interface interface {
 	ServicesNamespacer
 	EndpointsNamespacer
 	VersionInterface
-	MinionsInterface
+	NodesInterface
 	EventNamespacer
+	LimitRangesNamespacer
+	ResourceQuotasNamespacer
+	ResourceQuotaUsagesNamespacer
 }
 
 func (c *Client) ReplicationControllers(namespace string) ReplicationControllerInterface {
 	return newReplicationControllers(c, namespace)
 }
 
-func (c *Client) Minions() MinionInterface {
-	return newMinions(c)
+func (c *Client) Nodes() NodeInterface {
+	return newNodes(c)
 }
 
 func (c *Client) Events(namespace string) EventInterface {
@@ -58,6 +64,18 @@ func (c *Client) Pods(namespace string) PodInterface {
 
 func (c *Client) Services(namespace string) ServiceInterface {
 	return newServices(c, namespace)
+}
+
+func (c *Client) LimitRanges(namespace string) LimitRangeInterface {
+	return newLimitRanges(c, namespace)
+}
+
+func (c *Client) ResourceQuotas(namespace string) ResourceQuotaInterface {
+	return newResourceQuotas(c, namespace)
+}
+
+func (c *Client) ResourceQuotaUsages(namespace string) ResourceQuotaUsageInterface {
+	return newResourceQuotaUsages(c, namespace)
 }
 
 // VersionInterface has a method to retrieve the server version.
@@ -103,4 +121,31 @@ func (c *Client) ServerAPIVersions() (*api.APIVersions, error) {
 		return nil, fmt.Errorf("got '%s': %v", string(body), err)
 	}
 	return &v, nil
+}
+
+// IsTimeout tests if this is a timeout error in the underlying transport.
+// This is unbelievably ugly.
+// See: http://stackoverflow.com/questions/23494950/specifically-check-for-timeout-error for details
+func IsTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+	switch err := err.(type) {
+	case *url.Error:
+		if err, ok := err.Err.(net.Error); ok {
+			return err.Timeout()
+		}
+	case net.Error:
+		return err.Timeout()
+	}
+
+	if strings.Contains(err.Error(), "use of closed network connection") {
+		return true
+	}
+	return false
+}
+
+// preV1Beta3 returns true if the provided API version is an API introduced before v1beta3.
+func preV1Beta3(version string) bool {
+	return version == "v1beta1" || version == "v1beta2"
 }

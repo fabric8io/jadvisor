@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fabric8io/jadvisor/sources"
 	"github.com/golang/glog"
 	influxdb "github.com/influxdb/influxdb/client"
-	"github.com/jimmidyson/jadvisor/sources"
 )
 
 var (

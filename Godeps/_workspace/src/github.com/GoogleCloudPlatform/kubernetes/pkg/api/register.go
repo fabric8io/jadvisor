@@ -25,17 +25,16 @@ var Scheme = runtime.NewScheme()
 
 func init() {
 	Scheme.AddKnownTypes("",
-		&PodList{},
 		&Pod{},
+		&PodList{},
+		&PodStatusResult{},
 		&ReplicationControllerList{},
 		&ReplicationController{},
 		&ServiceList{},
 		&Service{},
-		&MinionList{},
-		&Minion{},
+		&NodeList{},
+		&Node{},
 		&Status{},
-		&ServerOpList{},
-		&ServerOp{},
 		&Endpoints{},
 		&EndpointsList{},
 		&Binding{},
@@ -45,26 +44,40 @@ func init() {
 		&ContainerManifestList{},
 		&BoundPod{},
 		&BoundPods{},
+		&List{},
+		&LimitRange{},
+		&LimitRangeList{},
+		&ResourceQuota{},
+		&ResourceQuotaList{},
+		&ResourceQuotaUsage{},
 	)
+	// Legacy names are supported
+	Scheme.AddKnownTypeWithName("", "Minion", &Node{})
+	Scheme.AddKnownTypeWithName("", "MinionList", &NodeList{})
 }
 
 func (*Pod) IsAnAPIObject()                       {}
 func (*PodList) IsAnAPIObject()                   {}
+func (*PodStatusResult) IsAnAPIObject()           {}
 func (*ReplicationController) IsAnAPIObject()     {}
 func (*ReplicationControllerList) IsAnAPIObject() {}
 func (*Service) IsAnAPIObject()                   {}
 func (*ServiceList) IsAnAPIObject()               {}
 func (*Endpoints) IsAnAPIObject()                 {}
 func (*EndpointsList) IsAnAPIObject()             {}
-func (*Minion) IsAnAPIObject()                    {}
-func (*MinionList) IsAnAPIObject()                {}
+func (*Node) IsAnAPIObject()                      {}
+func (*NodeList) IsAnAPIObject()                  {}
 func (*Binding) IsAnAPIObject()                   {}
 func (*Status) IsAnAPIObject()                    {}
-func (*ServerOp) IsAnAPIObject()                  {}
-func (*ServerOpList) IsAnAPIObject()              {}
 func (*Event) IsAnAPIObject()                     {}
 func (*EventList) IsAnAPIObject()                 {}
 func (*ContainerManifest) IsAnAPIObject()         {}
 func (*ContainerManifestList) IsAnAPIObject()     {}
 func (*BoundPod) IsAnAPIObject()                  {}
 func (*BoundPods) IsAnAPIObject()                 {}
+func (*List) IsAnAPIObject()                      {}
+func (*LimitRange) IsAnAPIObject()                {}
+func (*LimitRangeList) IsAnAPIObject()            {}
+func (*ResourceQuota) IsAnAPIObject()             {}
+func (*ResourceQuotaList) IsAnAPIObject()         {}
+func (*ResourceQuotaUsage) IsAnAPIObject()        {}

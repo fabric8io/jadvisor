@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/golang/glog"
 )
 
@@ -52,8 +52,8 @@ const (
 	ValidationErrorTypeForbidden ValidationErrorType = "FieldValueForbidden"
 )
 
-// ValueOf converts a ValidationErrorType into its corresponding error message.
-func ValueOf(t ValidationErrorType) string {
+// String converts a ValidationErrorType into its corresponding error message.
+func (t ValidationErrorType) String() string {
 	switch t {
 	case ValidationErrorTypeNotFound:
 		return "not found"
@@ -84,14 +84,21 @@ type ValidationError struct {
 var _ error = &ValidationError{}
 
 func (v *ValidationError) Error() string {
-	s := fmt.Sprintf("%s: %s '%v'", v.Field, ValueOf(v.Type), v.BadValue)
-	if v.Detail != "" {
+	var s string
+	switch v.Type {
+	case ValidationErrorTypeRequired:
+		s = spew.Sprintf("%s: %s", v.Field, v.Type)
+	default:
+		s = spew.Sprintf("%s: %s '%+v'", v.Field, v.Type, v.BadValue)
+	}
+	if len(v.Detail) != 0 {
 		s += fmt.Sprintf(": %s", v.Detail)
 	}
 	return s
 }
 
 // NewFieldRequired returns a *ValidationError indicating "value required"
+// TODO: remove "value"
 func NewFieldRequired(field string, value interface{}) *ValidationError {
 	return &ValidationError{ValidationErrorTypeRequired, field, value, ""}
 }
@@ -121,18 +128,7 @@ func NewFieldNotFound(field string, value interface{}) *ValidationError {
 	return &ValidationError{ValidationErrorTypeNotFound, field, value, ""}
 }
 
-// ValidationErrorList is a collection of ValidationErrors.  This does not
-// implement the error interface to avoid confusion where an empty
-// ValidationErrorList would still be an error (non-nil).  To produce a single
-// error instance from a ValidationErrorList, use the ToError() method, which
-// will return nil for an empty ValidationErrorList.
-type ValidationErrorList util.ErrorList
-
-// ToError converts a ValidationErrorList into a "normal" error, or nil if the
-// list is empty.
-func (list ValidationErrorList) ToError() error {
-	return util.ErrorList(list).ToError()
-}
+type ValidationErrorList []error
 
 // Prefix adds a prefix to the Field of every ValidationError in the list.
 // Returns the list for convenience.

@@ -3,17 +3,20 @@ package sources
 import (
 	"flag"
 	"time"
+
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
 )
 
 var (
-	argMaster = flag.String("kubernetes_master", "", "Kubernetes master IP")
+	argMaster         = flag.String("kubernetes_master", "https://localhost:8443", "Kubernetes master address")
+	argMasterInsecure = flag.Bool("kubernetes_insecure", false, "Trust Kubernetes master certificate (if using https)")
 )
 
 // PodState is the state of a pod, used as either input (desired state) or output (current state)
 type Pod struct {
 	Namespace  string            `json:"namespace,omitempty"`
 	Name       string            `json:"name,omitempty"`
-	ID         string            `json:"id,omitempty"`
+	ID         types.UID         `json:"id,omitempty"`
 	Hostname   string            `json:"hostname,omitempty"`
 	Containers []*Container      `json:"containers"`
 	Status     string            `json:"status,omitempty"`

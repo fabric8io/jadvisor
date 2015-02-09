@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fabric8io/jadvisor/sinks"
+	"github.com/fabric8io/jadvisor/sources"
 	"github.com/golang/glog"
-	"github.com/jimmidyson/jadvisor/sinks"
-	"github.com/jimmidyson/jadvisor/sources"
 )
 
 var argPollDuration = flag.Duration("poll_duration", 10*time.Second, "Polling duration")

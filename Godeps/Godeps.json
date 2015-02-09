@@ -9,52 +9,47 @@
 		},
 		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/api",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/client",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/conversion",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
-		},
-		{
-			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/health",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/labels",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/runtime",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/util",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/version",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
 			"ImportPath": "github.com/GoogleCloudPlatform/kubernetes/pkg/watch",
-			"Comment": "v0.6.2",
-			"Rev": "729fde276613eedcd99ecf5b93f095b8deb64eb4"
+			"Comment": "v0.10.0-251-gc9c98ab",
+			"Rev": "c9c98ab19eaa6f0b2ea17152c9a455338853f4d0"
 		},
 		{
 			"ImportPath": "github.com/golang/glog",
-			"Rev": "d1c4472bf2efd3826f2b5bdcc02d8416798d678c"
+			"Rev": "44145f04b68cf362d9c4df2182967c2275eaefed"
 		},
 		{
 			"ImportPath": "github.com/google/cadvisor/info",

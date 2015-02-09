@@ -18,7 +18,7 @@ package cache
 
 import (
 	"errors"
-	"fmt"
+	"io"
 	"reflect"
 	"time"
 
@@ -71,6 +71,12 @@ func (r *Reflector) Run() {
 	go util.Forever(func() { r.listAndWatch() }, r.period)
 }
 
+// RunUntil starts a watch and handles watch events. Will restart the watch if it is closed.
+// RunUntil starts a goroutine and returns immediately. It will exit when stopCh is closed.
+func (r *Reflector) RunUntil(stopCh <-chan struct{}) {
+	go util.Until(func() { r.listAndWatch() }, r.period, stopCh)
+}
+
 func (r *Reflector) listAndWatch() {
 	var resourceVersion string
 
@@ -90,8 +96,7 @@ func (r *Reflector) listAndWatch() {
 		glog.Errorf("Unable to understand list result %#v (%v)", list, err)
 		return
 	}
-	err = r.syncWith(items)
-	if err != nil {
+	if err := r.syncWith(items); err != nil {
 		glog.Errorf("Unable to sync list result: %v", err)
 		return
 	}
@@ -99,7 +104,14 @@ func (r *Reflector) listAndWatch() {
 	for {
 		w, err := r.listerWatcher.Watch(resourceVersion)
 		if err != nil {
-			glog.Errorf("failed to watch %v: %v", r.expectedType, err)
+			switch err {
+			case io.EOF:
+				// watch closed normally
+			case io.ErrUnexpectedEOF:
+				glog.V(1).Infof("Watch for %v closed with unexpected EOF: %v", r.expectedType, err)
+			default:
+				glog.Errorf("Failed to watch %v: %v", r.expectedType, err)
+			}
 			return
 		}
 		if err := r.watchHandler(w, &resourceVersion); err != nil {
@@ -111,17 +123,12 @@ func (r *Reflector) listAndWatch() {
 
 // syncWith replaces the store's items with the given list.
 func (r *Reflector) syncWith(items []runtime.Object) error {
-	found := map[string]interface{}{}
+	found := make([]interface{}, 0, len(items))
 	for _, item := range items {
-		meta, err := meta.Accessor(item)
-		if err != nil {
-			return fmt.Errorf("unexpected item in list: %v", err)
-		}
-		found[meta.Name()] = item
+		found = append(found, item)
 	}
 
-	r.store.Replace(found)
-	return nil
+	return r.store.Replace(found)
 }
 
 // watchHandler watches w and keeps *resourceVersion up to date.
@@ -147,14 +154,14 @@ func (r *Reflector) watchHandler(w watch.Interface, resourceVersion *string) err
 		}
 		switch event.Type {
 		case watch.Added:
-			r.store.Add(meta.Name(), event.Object)
+			r.store.Add(event.Object)
 		case watch.Modified:
-			r.store.Update(meta.Name(), event.Object)
+			r.store.Update(event.Object)
 		case watch.Deleted:
 			// TODO: Will any consumers need access to the "last known
 			// state", which is passed in event.Object? If so, may need
 			// to change this.
-			r.store.Delete(meta.Name())
+			r.store.Delete(event.Object)
 		default:
 			glog.Errorf("unable to understand watch event %#v", event)
 		}
@@ -164,9 +171,9 @@ func (r *Reflector) watchHandler(w watch.Interface, resourceVersion *string) err
 
 	watchDuration := time.Now().Sub(start)
 	if watchDuration < 1*time.Second && eventCount == 0 {
-		glog.Errorf("unexpected watch close - watch lasted less than a second and no items received")
+		glog.V(4).Infof("Unexpected watch close - watch lasted less than a second and no items received")
 		return errors.New("very short watch")
 	}
-	glog.V(4).Infof("watch close - %v total items received", eventCount)
+	glog.V(4).Infof("Watch close - %v total %v items received", r.expectedType, eventCount)
 	return nil
 }

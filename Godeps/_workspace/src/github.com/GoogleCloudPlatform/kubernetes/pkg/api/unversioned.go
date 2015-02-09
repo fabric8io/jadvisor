@@ -22,5 +22,11 @@ package api
 // version negotiation. APIVersions isn't just an unnamed array of
 // strings in order to allow for future evolution, though unversioned
 type APIVersions struct {
-	Versions []string `json:"versions" yaml:"versions"`
+	Versions []string `json:"versions"`
+}
+
+// RootPaths lists the paths available at root.
+// For example: "/healthz", "/api".
+type RootPaths struct {
+	Paths []string `json:"paths"`
 }

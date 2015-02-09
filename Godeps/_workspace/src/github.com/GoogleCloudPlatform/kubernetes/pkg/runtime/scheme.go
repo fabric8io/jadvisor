@@ -40,7 +40,7 @@ func (self *Scheme) fromScope(s conversion.Scope) (inVersion, outVersion string,
 
 // emptyPlugin is used to copy the Kind field to and from plugin objects.
 type emptyPlugin struct {
-	PluginBase `json:",inline" yaml:",inline"`
+	PluginBase `json:",inline"`
 }
 
 // embeddedObjectToRawExtension does the conversion you would expect from the name, using the information
@@ -95,7 +95,7 @@ func (self *Scheme) embeddedObjectToRawExtension(in *EmbeddedObject, out *RawExt
 // given in conversion.Scope. It's placed in all schemes as a ConversionFunc to enable plugins;
 // see the comment for RawExtension.
 func (self *Scheme) rawExtensionToEmbeddedObject(in *RawExtension, out *EmbeddedObject, s conversion.Scope) error {
-	if len(in.RawJSON) == 4 && string(in.RawJSON) == "null" {
+	if len(in.RawJSON) == 0 || (len(in.RawJSON) == 4 && string(in.RawJSON) == "null") {
 		out.Object = nil
 		return nil
 	}
@@ -140,15 +140,77 @@ func (self *Scheme) rawExtensionToEmbeddedObject(in *RawExtension, out *Embedded
 	return nil
 }
 
+// runtimeObjectToRawExtensionArray takes a list of objects and encodes them as RawExtension in the output version
+// defined by the conversion.Scope. If objects must be encoded to different schema versions you should set them as
+// runtime.Unknown in the internal version instead.
+func (self *Scheme) runtimeObjectToRawExtensionArray(in *[]Object, out *[]RawExtension, s conversion.Scope) error {
+	src := *in
+	dest := make([]RawExtension, len(src))
+
+	_, outVersion, scheme := self.fromScope(s)
+
+	for i := range src {
+		switch t := src[i].(type) {
+		case *Unknown:
+			dest[i].RawJSON = t.RawJSON
+		default:
+			data, err := scheme.EncodeToVersion(src[i], outVersion)
+			if err != nil {
+				return err
+			}
+			dest[i].RawJSON = data
+		}
+	}
+	*out = dest
+	return nil
+}
+
+// rawExtensionToRuntimeObjectArray attempts to decode objects from the array - if they are unrecognized objects,
+// they are added as Unknown.
+func (self *Scheme) rawExtensionToRuntimeObjectArray(in *[]RawExtension, out *[]Object, s conversion.Scope) error {
+	src := *in
+	dest := make([]Object, len(src))
+
+	_, _, scheme := self.fromScope(s)
+
+	for i := range src {
+		data := src[i].RawJSON
+		obj, err := scheme.Decode(data)
+		if err != nil {
+			if !IsNotRegisteredError(err) {
+				return err
+			}
+			version, kind, err := scheme.raw.DataVersionAndKind(data)
+			if err != nil {
+				return err
+			}
+			obj = &Unknown{
+				TypeMeta: TypeMeta{
+					APIVersion: version,
+					Kind:       kind,
+				},
+				RawJSON: data,
+			}
+		}
+		dest[i] = obj
+	}
+	*out = dest
+	return nil
+}
+
 // NewScheme creates a new Scheme. This scheme is pluggable by default.
 func NewScheme() *Scheme {
 	s := &Scheme{conversion.NewScheme()}
 	s.raw.InternalVersion = ""
 	s.raw.MetaFactory = conversion.SimpleMetaFactory{BaseFields: []string{"TypeMeta"}, VersionField: "APIVersion", KindField: "Kind"}
-	s.raw.AddConversionFuncs(
+	if err := s.raw.AddConversionFuncs(
 		s.embeddedObjectToRawExtension,
 		s.rawExtensionToEmbeddedObject,
-	)
+		s.runtimeObjectToRawExtensionArray,
+		s.rawExtensionToRuntimeObjectArray,
+	); err != nil {
+		panic(err)
+	}
 	return s
 }
 
@@ -203,7 +265,8 @@ func (s *Scheme) Log(l conversion.DebugLogger) {
 
 // AddConversionFuncs adds a function to the list of conversion functions. The given
 // function should know how to convert between two API objects. We deduce how to call
-// it from the types of its two parameters; see the comment for Converter.Register.
+// it from the types of its two parameters; see the comment for
+// Converter.RegisterConversionFunction.
 //
 // Note that, if you need to copy sub-objects that didn't change, it's safe to call
 // Convert() inside your conversionFuncs, as long as you don't start a conversion
@@ -223,6 +286,13 @@ func (s *Scheme) AddConversionFuncs(conversionFuncs ...interface{}) error {
 // Call as many times as needed, even on the same fields.
 func (s *Scheme) AddStructFieldConversion(srcFieldType interface{}, srcFieldName string, destFieldType interface{}, destFieldName string) error {
 	return s.raw.AddStructFieldConversion(srcFieldType, srcFieldName, destFieldType, destFieldName)
+}
+
+// AddDefaultingFuncs adds a function to the list of value-defaulting functions.
+// We deduce how to call it from the types of its two parameters; see the
+// comment for Converter.RegisterDefaultingFunction.
+func (s *Scheme) AddDefaultingFuncs(defaultingFuncs ...interface{}) error {
+	return s.raw.AddDefaultingFuncs(defaultingFuncs...)
 }
 
 // Convert will attempt to convert in into out. Both must be pointers.
@@ -298,12 +368,17 @@ func (s *Scheme) Decode(data []byte) (Object, error) {
 // pointer to an api type.
 // If obj's APIVersion doesn't match that in data, an attempt will be made to convert
 // data into obj's version.
+// TODO: allow Decode/DecodeInto to take a default apiVersion and a default kind, to
+// be applied if the provided object does not have either field (integrate external
+// apis into the decoding scheme).
 func (s *Scheme) DecodeInto(data []byte, obj Object) error {
 	return s.raw.DecodeInto(data, obj)
 }
 
 // Copy does a deep copy of an API object.  Useful mostly for tests.
 // TODO(dbsmith): implement directly instead of via Encode/Decode
+// TODO(claytonc): Copy cannot be used for objects which do not encode type information, such
+// as lists of runtime.Objects
 func (s *Scheme) Copy(obj Object) (Object, error) {
 	data, err := s.EncodeToVersion(obj, "")
 	if err != nil {

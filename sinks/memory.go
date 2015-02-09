@@ -5,7 +5,7 @@ import (
 	"flag"
 	"time"
 
-	"github.com/jimmidyson/jadvisor/sources"
+	"github.com/fabric8io/jadvisor/sources"
 )
 
 var argMaxStorageDuration = flag.Duration("sink_memory_ttl", 1*time.Hour, "Time duration for which stats should be cached if the memory sink is used")

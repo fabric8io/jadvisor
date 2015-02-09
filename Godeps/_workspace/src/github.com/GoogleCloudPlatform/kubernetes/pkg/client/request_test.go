@@ -20,17 +20,19 @@ import (
 	"bytes"
 	"encoding/base64"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"reflect"
+	// "reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	apierrors "github.com/GoogleCloudPlatform/kubernetes/pkg/api/errors"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api/latest"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api/testapi"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api/v1beta1"
@@ -42,10 +44,6 @@ import (
 	watchjson "github.com/GoogleCloudPlatform/kubernetes/pkg/watch/json"
 )
 
-func skipPolling(name string) (*Request, bool) {
-	return nil, false
-}
-
 func TestRequestWithErrorWontChange(t *testing.T) {
 	original := Request{err: errors.New("test")}
 	r := original
@@ -53,19 +51,91 @@ func TestRequestWithErrorWontChange(t *testing.T) {
 		SelectorParam("labels", labels.Set{"a": "b"}.AsSelector()).
 		UintParam("uint", 1).
 		AbsPath("/abs").
-		Path("test").
+		Prefix("test").
+		Suffix("testing").
 		ParseSelectorParam("foo", "a=b").
 		Namespace("new").
-		NoPoll().
+		Resource("foos").
+		Name("bars").
 		Body("foo").
-		Poller(skipPolling).
-		Timeout(time.Millisecond).
-		Sync(true)
+		Timeout(time.Millisecond)
 	if changed != &r {
 		t.Errorf("returned request should point to the same object")
 	}
-	if !reflect.DeepEqual(&original, changed) {
+	if !api.Semantic.DeepDerivative(changed, &original) {
 		t.Errorf("expected %#v, got %#v", &original, changed)
+	}
+}
+
+func TestRequestPreservesBaseTrailingSlash(t *testing.T) {
+	r := &Request{baseURL: &url.URL{}, path: "/path/", namespaceInQuery: true}
+	if s := r.finalURL(); s != "/path/" {
+		t.Errorf("trailing slash should be preserved: %s", s)
+	}
+}
+
+func TestRequestAbsPathPreservesTrailingSlash(t *testing.T) {
+	r := (&Request{baseURL: &url.URL{}, namespaceInQuery: true}).AbsPath("/foo/")
+	if s := r.finalURL(); s != "/foo/" {
+		t.Errorf("trailing slash should be preserved: %s", s)
+	}
+
+	r = (&Request{baseURL: &url.URL{}}).AbsPath("/foo/")
+	if s := r.finalURL(); s != "/foo/" {
+		t.Errorf("trailing slash should be preserved: %s", s)
+	}
+}
+
+func TestRequestAbsPathJoins(t *testing.T) {
+	r := (&Request{baseURL: &url.URL{}, namespaceInQuery: true}).AbsPath("foo/bar", "baz")
+	if s := r.finalURL(); s != "foo/bar/baz" {
+		t.Errorf("trailing slash should be preserved: %s", s)
+	}
+}
+
+func TestRequestSetsNamespace(t *testing.T) {
+	r := (&Request{
+		baseURL: &url.URL{
+			Path: "/",
+		},
+		namespaceInQuery: true,
+	}).Namespace("foo")
+	if r.namespace == "" {
+		t.Errorf("namespace should be set: %#v", r)
+	}
+	if s := r.finalURL(); s != "?namespace=foo" {
+		t.Errorf("namespace should be in params: %s", s)
+	}
+
+	r = (&Request{
+		baseURL: &url.URL{
+			Path: "/",
+		},
+	}).Namespace("foo")
+	if s := r.finalURL(); s != "ns/foo" {
+		t.Errorf("namespace should be in path: %s", s)
+	}
+}
+
+func TestRequestOrdersNamespaceInPath(t *testing.T) {
+	r := (&Request{
+		baseURL: &url.URL{},
+		path:    "/test/",
+	}).Name("bar").Resource("baz").Namespace("foo")
+	if s := r.finalURL(); s != "/test/ns/foo/baz/bar" {
+		t.Errorf("namespace should be in order in path: %s", s)
+	}
+}
+
+func TestRequestSetTwiceError(t *testing.T) {
+	if (&Request{}).Name("bar").Name("baz").err == nil {
+		t.Errorf("setting name twice should result in error")
+	}
+	if (&Request{}).Namespace("bar").Namespace("baz").err == nil {
+		t.Errorf("setting namespace twice should result in error")
+	}
+	if (&Request{}).Resource("bar").Resource("baz").err == nil {
+		t.Errorf("setting resource twice should result in error")
 	}
 }
 
@@ -78,7 +148,7 @@ func TestRequestParseSelectorParam(t *testing.T) {
 
 func TestRequestParam(t *testing.T) {
 	r := (&Request{}).Param("foo", "a")
-	if !reflect.DeepEqual(map[string]string{"foo": "a"}, r.params) {
+	if !api.Semantic.DeepDerivative(r.params, map[string]string{"foo": "a"}) {
 		t.Errorf("should have set a param: %#v", r)
 	}
 }
@@ -132,11 +202,14 @@ func TestTransformResponse(t *testing.T) {
 		{Response: &http.Response{StatusCode: 201}, Data: []byte{}, Created: true},
 		{Response: &http.Response{StatusCode: 199}, Error: true},
 		{Response: &http.Response{StatusCode: 500}, Error: true},
+		{Response: &http.Response{StatusCode: 422}, Error: true},
+		{Response: &http.Response{StatusCode: 409}, Error: true},
+		{Response: &http.Response{StatusCode: 404}, Error: true},
 		{Response: &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader(invalid))}, Data: invalid},
 		{Response: &http.Response{StatusCode: 200, Body: ioutil.NopCloser(bytes.NewReader(invalid))}, Data: invalid},
 	}
 	for i, test := range testCases {
-		r := NewRequest(nil, "", uri, testapi.Codec())
+		r := NewRequest(nil, "", uri, testapi.Codec(), true, true)
 		if test.Response.Body == nil {
 			test.Response.Body = ioutil.NopCloser(bytes.NewReader([]byte{}))
 		}
@@ -145,11 +218,85 @@ func TestTransformResponse(t *testing.T) {
 		if hasErr != test.Error {
 			t.Errorf("%d: unexpected error: %t %v", i, test.Error, err)
 		}
-		if !(test.Data == nil && response == nil) && !reflect.DeepEqual(test.Data, response) {
+		if !(test.Data == nil && response == nil) && !api.Semantic.DeepDerivative(test.Data, response) {
 			t.Errorf("%d: unexpected response: %#v %#v", i, test.Data, response)
 		}
 		if test.Created != created {
 			t.Errorf("%d: expected created %t, got %t", i, test.Created, created)
+		}
+	}
+}
+
+func TestTransformUnstructuredError(t *testing.T) {
+	testCases := []struct {
+		Req *http.Request
+		Res *http.Response
+
+		Resource string
+		Name     string
+
+		ErrFn func(error) bool
+	}{
+		{
+			Resource: "foo",
+			Name:     "bar",
+			Req: &http.Request{
+				Method: "POST",
+			},
+			Res: &http.Response{
+				StatusCode: http.StatusConflict,
+				Body:       ioutil.NopCloser(bytes.NewReader(nil)),
+			},
+			ErrFn: apierrors.IsAlreadyExists,
+		},
+		{
+			Resource: "foo",
+			Name:     "bar",
+			Req: &http.Request{
+				Method: "PUT",
+			},
+			Res: &http.Response{
+				StatusCode: http.StatusConflict,
+				Body:       ioutil.NopCloser(bytes.NewReader(nil)),
+			},
+			ErrFn: apierrors.IsConflict,
+		},
+		{
+			Resource: "foo",
+			Name:     "bar",
+			Req:      &http.Request{},
+			Res: &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       ioutil.NopCloser(bytes.NewReader(nil)),
+			},
+			ErrFn: apierrors.IsNotFound,
+		},
+		{
+			Req: &http.Request{},
+			Res: &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Body:       ioutil.NopCloser(bytes.NewReader(nil)),
+			},
+			ErrFn: apierrors.IsBadRequest,
+		},
+	}
+
+	for _, testCase := range testCases {
+		r := &Request{
+			codec:        latest.Codec,
+			resourceName: testCase.Name,
+			resource:     testCase.Resource,
+		}
+		_, _, err := r.transformResponse(testCase.Res, testCase.Req)
+		if !testCase.ErrFn(err) {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if len(testCase.Name) != 0 && !strings.Contains(err.Error(), testCase.Name) {
+			t.Errorf("unexpected error string: %s", err)
+		}
+		if len(testCase.Resource) != 0 && !strings.Contains(err.Error(), testCase.Resource) {
+			t.Errorf("unexpected error string: %s", err)
 		}
 	}
 }
@@ -164,6 +311,7 @@ func TestRequestWatch(t *testing.T) {
 	testCases := []struct {
 		Request *Request
 		Err     bool
+		Empty   bool
 	}{
 		{
 			Request: &Request{err: errors.New("bail")},
@@ -191,15 +339,59 @@ func TestRequestWatch(t *testing.T) {
 			},
 			Err: true,
 		},
+		{
+			Request: &Request{
+				client: clientFunc(func(req *http.Request) (*http.Response, error) {
+					return nil, io.EOF
+				}),
+				baseURL: &url.URL{},
+			},
+			Empty: true,
+		},
+		{
+			Request: &Request{
+				client: clientFunc(func(req *http.Request) (*http.Response, error) {
+					return nil, &url.Error{Err: io.EOF}
+				}),
+				baseURL: &url.URL{},
+			},
+			Empty: true,
+		},
+		{
+			Request: &Request{
+				client: clientFunc(func(req *http.Request) (*http.Response, error) {
+					return nil, errors.New("http: can't write HTTP request on broken connection")
+				}),
+				baseURL: &url.URL{},
+			},
+			Empty: true,
+		},
+		{
+			Request: &Request{
+				client: clientFunc(func(req *http.Request) (*http.Response, error) {
+					return nil, errors.New("foo: connection reset by peer")
+				}),
+				baseURL: &url.URL{},
+			},
+			Empty: true,
+		},
 	}
 	for i, testCase := range testCases {
 		watch, err := testCase.Request.Watch()
 		hasErr := err != nil
 		if hasErr != testCase.Err {
 			t.Errorf("%d: expected %t, got %t: %v", i, testCase.Err, hasErr, err)
+			continue
 		}
 		if hasErr && watch != nil {
 			t.Errorf("%d: watch should be nil when error is returned", i)
+			continue
+		}
+		if testCase.Empty {
+			_, ok := <-watch.ResultChan()
+			if ok {
+				t.Errorf("%d: expected the watch to be empty: %#v", i, watch)
+			}
 		}
 	}
 }
@@ -287,8 +479,8 @@ func TestDoRequestNewWay(t *testing.T) {
 	defer testServer.Close()
 	c := NewOrDie(&Config{Host: testServer.URL, Version: "v1beta2", Username: "user", Password: "pass"})
 	obj, err := c.Verb("POST").
-		Path("foo/bar").
-		Path("baz").
+		Prefix("foo", "bar").
+		Suffix("baz").
 		ParseSelectorParam("labels", "name=foo").
 		Timeout(time.Second).
 		Body([]byte(reqBody)).
@@ -299,10 +491,10 @@ func TestDoRequestNewWay(t *testing.T) {
 	}
 	if obj == nil {
 		t.Error("nil obj")
-	} else if !reflect.DeepEqual(obj, expectedObj) {
+	} else if !api.Semantic.DeepDerivative(expectedObj, obj) {
 		t.Errorf("Expected: %#v, got %#v", expectedObj, obj)
 	}
-	fakeHandler.ValidateRequest(t, "/api/v1beta2/foo/bar/baz?labels=name%3Dfoo", "POST", &reqBody)
+	fakeHandler.ValidateRequest(t, "/api/v1beta2/foo/bar/baz?labels=name%3Dfoo&timeout=1s", "POST", &reqBody)
 	if fakeHandler.RequestReceived.Header["Authorization"] == nil {
 		t.Errorf("Request is missing authorization header: %#v", *fakeHandler.RequestReceived)
 	}
@@ -321,10 +513,10 @@ func TestDoRequestNewWayReader(t *testing.T) {
 	testServer := httptest.NewServer(&fakeHandler)
 	c := NewOrDie(&Config{Host: testServer.URL, Version: "v1beta1", Username: "user", Password: "pass"})
 	obj, err := c.Verb("POST").
-		Path("foo/bar").
-		Path("baz").
+		Resource("bar").
+		Name("baz").
+		Prefix("foo").
 		SelectorParam("labels", labels.Set{"name": "foo"}.AsSelector()).
-		Sync(true).
 		Timeout(time.Second).
 		Body(bytes.NewBuffer(reqBodyExpected)).
 		Do().Get()
@@ -334,11 +526,11 @@ func TestDoRequestNewWayReader(t *testing.T) {
 	}
 	if obj == nil {
 		t.Error("nil obj")
-	} else if !reflect.DeepEqual(obj, expectedObj) {
+	} else if !api.Semantic.DeepDerivative(expectedObj, obj) {
 		t.Errorf("Expected: %#v, got %#v", expectedObj, obj)
 	}
 	tmpStr := string(reqBodyExpected)
-	fakeHandler.ValidateRequest(t, "/api/v1beta1/foo/bar/baz?labels=name%3Dfoo&sync=true&timeout=1s", "POST", &tmpStr)
+	fakeHandler.ValidateRequest(t, "/api/v1beta1/foo/bar/baz?labels=name%3Dfoo&timeout=1s", "POST", &tmpStr)
 	if fakeHandler.RequestReceived.Header["Authorization"] == nil {
 		t.Errorf("Request is missing authorization header: %#v", *fakeHandler.RequestReceived)
 	}
@@ -357,8 +549,9 @@ func TestDoRequestNewWayObj(t *testing.T) {
 	testServer := httptest.NewServer(&fakeHandler)
 	c := NewOrDie(&Config{Host: testServer.URL, Version: "v1beta2", Username: "user", Password: "pass"})
 	obj, err := c.Verb("POST").
-		Path("foo/bar").
-		Path("baz").
+		Suffix("baz").
+		Name("bar").
+		Resource("foo").
 		SelectorParam("labels", labels.Set{"name": "foo"}.AsSelector()).
 		Timeout(time.Second).
 		Body(reqObj).
@@ -369,11 +562,11 @@ func TestDoRequestNewWayObj(t *testing.T) {
 	}
 	if obj == nil {
 		t.Error("nil obj")
-	} else if !reflect.DeepEqual(obj, expectedObj) {
+	} else if !api.Semantic.DeepDerivative(expectedObj, obj) {
 		t.Errorf("Expected: %#v, got %#v", expectedObj, obj)
 	}
 	tmpStr := string(reqBodyExpected)
-	fakeHandler.ValidateRequest(t, "/api/v1beta2/foo/bar/baz?labels=name%3Dfoo", "POST", &tmpStr)
+	fakeHandler.ValidateRequest(t, "/api/v1beta2/foo/bar/baz?labels=name%3Dfoo&timeout=1s", "POST", &tmpStr)
 	if fakeHandler.RequestReceived.Header["Authorization"] == nil {
 		t.Errorf("Request is missing authorization header: %#v", *fakeHandler.RequestReceived)
 	}
@@ -407,8 +600,7 @@ func TestDoRequestNewWayFile(t *testing.T) {
 	c := NewOrDie(&Config{Host: testServer.URL, Version: "v1beta1", Username: "user", Password: "pass"})
 	wasCreated := true
 	obj, err := c.Verb("POST").
-		Path("foo/bar").
-		Path("baz").
+		Prefix("foo/bar", "baz").
 		ParseSelectorParam("labels", "name=foo").
 		Timeout(time.Second).
 		Body(file.Name()).
@@ -419,14 +611,14 @@ func TestDoRequestNewWayFile(t *testing.T) {
 	}
 	if obj == nil {
 		t.Error("nil obj")
-	} else if !reflect.DeepEqual(obj, expectedObj) {
+	} else if !api.Semantic.DeepDerivative(expectedObj, obj) {
 		t.Errorf("Expected: %#v, got %#v", expectedObj, obj)
 	}
 	if wasCreated {
 		t.Errorf("expected object was not created")
 	}
 	tmpStr := string(reqBodyExpected)
-	fakeHandler.ValidateRequest(t, "/api/v1beta1/foo/bar/baz?labels=name%3Dfoo", "POST", &tmpStr)
+	fakeHandler.ValidateRequest(t, "/api/v1beta1/foo/bar/baz?labels=name%3Dfoo&timeout=1s", "POST", &tmpStr)
 	if fakeHandler.RequestReceived.Header["Authorization"] == nil {
 		t.Errorf("Request is missing authorization header: %#v", *fakeHandler.RequestReceived)
 	}
@@ -450,8 +642,7 @@ func TestWasCreated(t *testing.T) {
 	c := NewOrDie(&Config{Host: testServer.URL, Version: "v1beta1", Username: "user", Password: "pass"})
 	wasCreated := false
 	obj, err := c.Verb("PUT").
-		Path("foo/bar").
-		Path("baz").
+		Prefix("foo/bar", "baz").
 		ParseSelectorParam("labels", "name=foo").
 		Timeout(time.Second).
 		Body(reqBodyExpected).
@@ -462,7 +653,7 @@ func TestWasCreated(t *testing.T) {
 	}
 	if obj == nil {
 		t.Error("nil obj")
-	} else if !reflect.DeepEqual(obj, expectedObj) {
+	} else if !api.Semantic.DeepDerivative(expectedObj, obj) {
 		t.Errorf("Expected: %#v, got %#v", expectedObj, obj)
 	}
 	if !wasCreated {
@@ -470,7 +661,7 @@ func TestWasCreated(t *testing.T) {
 	}
 
 	tmpStr := string(reqBodyExpected)
-	fakeHandler.ValidateRequest(t, "/api/v1beta1/foo/bar/baz?labels=name%3Dfoo", "PUT", &tmpStr)
+	fakeHandler.ValidateRequest(t, "/api/v1beta1/foo/bar/baz?labels=name%3Dfoo&timeout=1s", "PUT", &tmpStr)
 	if fakeHandler.RequestReceived.Header["Authorization"] == nil {
 		t.Errorf("Request is missing authorization header: %#v", *fakeHandler.RequestReceived)
 	}
@@ -495,25 +686,9 @@ func TestVerbs(t *testing.T) {
 func TestAbsPath(t *testing.T) {
 	expectedPath := "/bar/foo"
 	c := NewOrDie(&Config{})
-	r := c.Post().Path("/foo").AbsPath(expectedPath)
+	r := c.Post().Prefix("/foo").AbsPath(expectedPath)
 	if r.path != expectedPath {
 		t.Errorf("unexpected path: %s, expected %s", r.path, expectedPath)
-	}
-}
-
-func TestSync(t *testing.T) {
-	c := NewOrDie(&Config{})
-	r := c.Get()
-	if r.sync {
-		t.Errorf("sync has wrong default")
-	}
-	r.Sync(false)
-	if r.sync {
-		t.Errorf("'Sync' doesn't work")
-	}
-	r.Sync(true)
-	if !r.sync {
-		t.Errorf("'Sync' doesn't work")
 	}
 }
 
@@ -543,7 +718,6 @@ func TestUnacceptableParamNames(t *testing.T) {
 		testVal       string
 		expectSuccess bool
 	}{
-		{"sync", "foo", false},
 		{"timeout", "42", false},
 	}
 
@@ -588,90 +762,6 @@ func TestBody(t *testing.T) {
 	}
 }
 
-func TestSetPoller(t *testing.T) {
-	c := NewOrDie(&Config{})
-	r := c.Get()
-	if c.PollPeriod == 0 {
-		t.Errorf("polling should be on by default")
-	}
-	if r.poller == nil {
-		t.Errorf("polling should be on by default")
-	}
-	r.NoPoll()
-	if r.poller != nil {
-		t.Errorf("'NoPoll' doesn't work")
-	}
-}
-
-func TestPolling(t *testing.T) {
-	objects := []runtime.Object{
-		&api.Status{Status: api.StatusWorking, Details: &api.StatusDetails{ID: "1234"}},
-		&api.Status{Status: api.StatusWorking, Details: &api.StatusDetails{ID: "1234"}},
-		&api.Status{Status: api.StatusWorking, Details: &api.StatusDetails{ID: "1234"}},
-		&api.Status{Status: api.StatusWorking, Details: &api.StatusDetails{ID: "1234"}},
-		&api.Status{Status: api.StatusSuccess},
-	}
-
-	callNumber := 0
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if callNumber == 0 {
-			if r.URL.Path != "/api/v1beta1/" {
-				t.Fatalf("unexpected request URL path %s", r.URL.Path)
-			}
-		} else {
-			if r.URL.Path != "/api/v1beta1/operations/1234" {
-				t.Fatalf("unexpected request URL path %s", r.URL.Path)
-			}
-		}
-		t.Logf("About to write %d", callNumber)
-		data, err := v1beta1.Codec.Encode(objects[callNumber])
-		if err != nil {
-			t.Errorf("Unexpected encode error")
-		}
-		callNumber++
-		w.Write(data)
-	}))
-
-	c := NewOrDie(&Config{Host: testServer.URL, Version: "v1beta1", Username: "user", Password: "pass"})
-	c.PollPeriod = 1 * time.Millisecond
-	trials := []func(){
-		func() {
-			// Check that we do indeed poll when asked to.
-			obj, err := c.Get().Do().Get()
-			if err != nil {
-				t.Errorf("Unexpected error: %v %#v", err, err)
-				return
-			}
-			if s, ok := obj.(*api.Status); !ok || s.Status != api.StatusSuccess {
-				t.Errorf("Unexpected return object: %#v", obj)
-				return
-			}
-			if callNumber != len(objects) {
-				t.Errorf("Unexpected number of calls: %v", callNumber)
-			}
-		},
-		func() {
-			// Check that we don't poll when asked not to.
-			obj, err := c.Get().NoPoll().Do().Get()
-			if err == nil {
-				t.Errorf("Unexpected non error: %v", obj)
-				return
-			}
-			if se, ok := err.(APIStatus); !ok || se.Status().Status != api.StatusWorking {
-				t.Errorf("Unexpected kind of error: %#v", err)
-				return
-			}
-			if callNumber != 1 {
-				t.Errorf("Unexpected number of calls: %v", callNumber)
-			}
-		},
-	}
-	for _, f := range trials {
-		callNumber = 0
-		f()
-	}
-}
-
 func authFromReq(r *http.Request) (*Config, bool) {
 	auth, ok := r.Header["Authorization"]
 	if !ok {
@@ -700,7 +790,7 @@ func checkAuth(t *testing.T, expect *Config, r *http.Request) {
 	foundAuth, found := authFromReq(r)
 	if !found {
 		t.Errorf("no auth found")
-	} else if e, a := expect, foundAuth; !reflect.DeepEqual(e, a) {
+	} else if e, a := expect, foundAuth; !api.Semantic.DeepDerivative(e, a) {
 		t.Fatalf("Wrong basic auth: wanted %#v, got %#v", e, a)
 	}
 }
@@ -746,7 +836,7 @@ func TestWatch(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	watching, err := s.Get().Path("path/to/watch/thing").Watch()
+	watching, err := s.Get().Prefix("path/to/watch/thing").Watch()
 	if err != nil {
 		t.Fatalf("Unexpected error")
 	}
@@ -759,7 +849,7 @@ func TestWatch(t *testing.T) {
 		if e, a := item.t, got.Type; e != a {
 			t.Errorf("Expected %v, got %v", e, a)
 		}
-		if e, a := item.obj, got.Object; !reflect.DeepEqual(e, a) {
+		if e, a := item.obj, got.Object; !api.Semantic.DeepDerivative(e, a) {
 			t.Errorf("Expected %v, got %v", e, a)
 		}
 	}
@@ -795,7 +885,7 @@ func TestStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	readCloser, err := s.Get().Path("path/to/stream/thing").Stream()
+	readCloser, err := s.Get().Prefix("path/to/stream/thing").Stream()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

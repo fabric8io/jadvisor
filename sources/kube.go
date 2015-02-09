@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
@@ -136,13 +137,16 @@ func (self *KubeSource) GetInfo() (ContainerData, error) {
 }
 
 func newKubeSource() (*KubeSource, error) {
+	if !(strings.HasPrefix(*argMaster, "http://") || strings.HasPrefix(*argMaster, "https://")) {
+		*argMaster = "http://" + *argMaster
+	}
 	if len(*argMaster) == 0 {
 		return nil, fmt.Errorf("kubernetes_master flag not specified")
 	}
 	kubeClient := kube_client.NewOrDie(&kube_client.Config{
-		Host:     "http://" + os.ExpandEnv(*argMaster),
-		Version:  "v1beta1",
-		Insecure: true,
+		Host:     os.ExpandEnv(*argMaster),
+		Version:  "v1beta2",
+		Insecure: *argMasterInsecure,
 	})
 
 	return &KubeSource{

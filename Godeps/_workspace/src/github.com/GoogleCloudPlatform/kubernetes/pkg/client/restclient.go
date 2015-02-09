@@ -22,8 +22,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/runtime"
-
-	"github.com/golang/glog"
 )
 
 // RESTClient imposes common Kubernetes API conventions on a set of resource paths.
@@ -35,6 +33,13 @@ import (
 // Most consumers should use client.New() to get a Kubernetes API client.
 type RESTClient struct {
 	baseURL *url.URL
+	// A string identifying the version of the API this client is expected to use.
+	apiVersion string
+
+	// LegacyBehavior controls if URLs should encode the namespace as a query param,
+	// and if resource case is preserved for supporting older API conventions of
+	// Kubernetes.  Newer clients should leave this false.
+	LegacyBehavior bool
 
 	// Codec is the encoding and decoding scheme that applies to a particular set of
 	// REST resources.
@@ -44,19 +49,14 @@ type RESTClient struct {
 	// used.
 	Client HTTPClient
 
-	// Set the poll behavior of this client. If not set the DefaultPoll method will
-	// be called.
-	Poller PollFunc
-
-	Sync       bool
-	PollPeriod time.Duration
-	Timeout    time.Duration
+	Timeout time.Duration
 }
 
 // NewRESTClient creates a new RESTClient. This client performs generic REST functions
 // such as Get, Put, Post, and Delete on specified paths.  Codec controls encoding and
-// decoding of responses from the server.
-func NewRESTClient(baseURL *url.URL, c runtime.Codec) *RESTClient {
+// decoding of responses from the server. If this client should use the older, legacy
+// API conventions from Kubernetes API v1beta1 and v1beta2, set legacyBehavior true.
+func NewRESTClient(baseURL *url.URL, apiVersion string, c runtime.Codec, legacyBehavior bool) *RESTClient {
 	base := *baseURL
 	if !strings.HasSuffix(base.Path, "/") {
 		base.Path += "/"
@@ -65,14 +65,12 @@ func NewRESTClient(baseURL *url.URL, c runtime.Codec) *RESTClient {
 	base.Fragment = ""
 
 	return &RESTClient{
-		baseURL: &base,
-		Codec:   c,
+		baseURL:    &base,
+		apiVersion: apiVersion,
 
-		// Make asynchronous requests by default
-		Sync: false,
+		Codec: c,
 
-		// Poll frequently when asynchronous requests are provided
-		PollPeriod: time.Second * 2,
+		LegacyBehavior: legacyBehavior,
 	}
 }
 
@@ -94,11 +92,7 @@ func (c *RESTClient) Verb(verb string) *Request {
 	// if c.Client != nil {
 	// 	timeout = c.Client.Timeout
 	// }
-	poller := c.Poller
-	if poller == nil {
-		poller = c.DefaultPoll
-	}
-	return NewRequest(c.Client, verb, c.baseURL, c.Codec).Poller(poller).Sync(c.Sync).Timeout(c.Timeout)
+	return NewRequest(c.Client, verb, c.baseURL, c.Codec, c.LegacyBehavior, c.LegacyBehavior).Timeout(c.Timeout)
 }
 
 // Post begins a POST request. Short for c.Verb("POST").
@@ -121,17 +115,7 @@ func (c *RESTClient) Delete() *Request {
 	return c.Verb("DELETE")
 }
 
-// PollFor makes a request to do a single poll of the completion of the given operation.
-func (c *RESTClient) Operation(name string) *Request {
-	return c.Get().Path("operations").Path(name).Sync(false).NoPoll()
-}
-
-func (c *RESTClient) DefaultPoll(name string) (*Request, bool) {
-	if c.PollPeriod == 0 {
-		return nil, false
-	}
-	glog.Infof("Waiting for completion of operation %s", name)
-	time.Sleep(c.PollPeriod)
-	// Make a poll request
-	return c.Operation(name).Poller(c.DefaultPoll), true
+// APIVersion returns the APIVersion this RESTClient is expected to use.
+func (c *RESTClient) APIVersion() string {
+	return c.apiVersion
 }

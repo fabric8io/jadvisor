@@ -20,7 +20,7 @@ import (
 	"errors"
 	"fmt"
 
-	"gopkg.in/v1/yaml"
+	"github.com/ghodss/yaml"
 )
 
 // Decode converts a YAML or JSON string back into a pointer to an api object.
@@ -97,36 +97,25 @@ func (s *Scheme) DecodeInto(data []byte, obj interface{}) error {
 		// correct type.
 		dataKind = objKind
 	}
-	if dataKind != objKind {
-		return fmt.Errorf("data of kind '%v', obj of type '%v'", dataKind, objKind)
-	}
 	if dataVersion == "" {
 		// Assume objects with unset Version fields are being unmarshalled into the
 		// correct type.
 		dataVersion = objVersion
 	}
 
-	if objVersion == dataVersion {
-		// Easy case!
-		err = yaml.Unmarshal(data, obj)
-		if err != nil {
-			return err
-		}
-	} else {
-		external, err := s.NewObject(dataVersion, dataKind)
-		if err != nil {
-			return fmt.Errorf("unable to create new object of type ('%s', '%s')", dataVersion, dataKind)
-		}
-		// yaml is a superset of json, so we use it to decode here. That way,
-		// we understand both.
-		err = yaml.Unmarshal(data, external)
-		if err != nil {
-			return err
-		}
-		err = s.converter.Convert(external, obj, 0, s.generateConvertMeta(dataVersion, objVersion))
-		if err != nil {
-			return err
-		}
+	external, err := s.NewObject(dataVersion, dataKind)
+	if err != nil {
+		return err
+	}
+	// yaml is a superset of json, so we use it to decode here. That way,
+	// we understand both.
+	err = yaml.Unmarshal(data, external)
+	if err != nil {
+		return err
+	}
+	err = s.converter.Convert(external, obj, 0, s.generateConvertMeta(dataVersion, objVersion))
+	if err != nil {
+		return err
 	}
 
 	// Version and Kind should be blank in memory.
