@@ -10,8 +10,8 @@ stage/jadvisor: build/jadvisor
 	cp build/jadvisor stage/jadvisor
 
 release:
-	docker tag jadvisor jimmidyson/jadvisor
-	docker push jimmidyson/jadvisor
+	docker tag jadvisor fabric8io/jadvisor
+	docker push fabric8io/jadvisor
 
 .PHONY: clean
 clean:
