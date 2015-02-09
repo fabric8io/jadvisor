@@ -1,6 +1,4 @@
-# jAdvisor
-
-[![Circle CI](https://circleci.com/gh/fabric8io/jadvisor.svg?style=svg)](https://circleci.com/gh/fabric8io/jadvisor)
+# jAdvisor [![Circle CI](https://circleci.com/gh/fabric8io/jadvisor.svg?style=svg)](https://circleci.com/gh/fabric8io/jadvisor)
 
 jAdvisor is here to help you gather metrics from your [Jolokia](http://jolokia.org/) enabled
 [Docker](https://docker.com/) containers running in your Kubernetes environment.
