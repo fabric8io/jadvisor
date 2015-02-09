@@ -58,3 +58,7 @@ make
 ```
 
 This will build the binary into `stage` directory & also build a Docker image `jadvisor:latest` for you to try out.
+
+## Contributing
+
+Normal fork, branch, PR process please.
