@@ -34,18 +34,20 @@ func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
 	for _, container := range pod.Spec.Containers {
 		for _, port := range container.Ports {
 			if port.Name == "jolokia" || port.ContainerPort == 8778 {
-//				localContainer := newJolokiaContainer()
-//				localContainer.Name = container.Name
-//                localContainer.Host = pod.Status.PodIP
-//                localContainer.JolokiaPort = port.ContainerPort
-//				localPod.Containers = append(localPod.Containers, localContainer)
-//				break
-//			} else if port.Name == "eap" || port.ContainerPort == 9990 {
-//                localContainer := newDmrContainer()
-//                localContainer.Name = container.Name
-//                localContainer.Host = pod.Status.PodIP
-//                localContainer.DmrPort = port.ContainerPort
-//                localPod.Containers = append(localPod.Containers, localContainer)
+				localContainer := newJolokiaContainer()
+				localContainer.Name = container.Name
+        localContainer.Host = pod.Status.PodIP
+        localContainer.JolokiaPort = port.ContainerPort
+        ctr := Container(localContainer)
+				localPod.Containers = append(localPod.Containers, &ctr)
+				break
+			} else if port.Name == "eap" || port.ContainerPort == 9990 {
+                localContainer := newDmrContainer()
+                localContainer.Name = container.Name
+                localContainer.Host = pod.Status.PodIP
+                localContainer.DmrPort = port.ContainerPort
+        ctr := Container(localContainer)
+				localPod.Containers = append(localPod.Containers, &ctr)
                 break
             }
 		}
