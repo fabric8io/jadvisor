@@ -24,8 +24,7 @@ deployment:
     branch: master
     owner: fabric8io
     commands:
-      - docker tag jadvisor fabric8/jadvisor
       - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
-      - docker push fabric8/jadvisor
+      - make image release
 
 
