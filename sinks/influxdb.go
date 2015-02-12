@@ -28,7 +28,7 @@ type InfluxdbSink struct {
 	lastWrite      time.Time
 }
 
-func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, containerName string, timestamp time.Time, stats *sources.JolokiaValue) (columns []string, values []interface{}) {
+func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, containerName string, timestamp time.Time, stats *sources.StatsValue) (columns []string, values []interface{}) {
 	// Timestamp
 	columns = append(columns, colTimestamp)
 	values = append(values, timestamp.Unix())
