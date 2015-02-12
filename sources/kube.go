@@ -1,10 +1,7 @@
 package sources
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -37,12 +34,20 @@ func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
 	for _, container := range pod.Spec.Containers {
 		for _, port := range container.Ports {
 			if port.Name == "jolokia" || port.ContainerPort == 8778 {
-				localContainer := newContainer()
-				localContainer.Name = container.Name
-				localContainer.JolokiaPort = port.ContainerPort
-				localPod.Containers = append(localPod.Containers, localContainer)
-				break
-			}
+//				localContainer := newJolokiaContainer()
+//				localContainer.Name = container.Name
+//                localContainer.Host = pod.Status.PodIP
+//                localContainer.JolokiaPort = port.ContainerPort
+//				localPod.Containers = append(localPod.Containers, localContainer)
+//				break
+//			} else if port.Name == "eap" || port.ContainerPort == 9990 {
+//                localContainer := newDmrContainer()
+//                localContainer.Name = container.Name
+//                localContainer.Host = pod.Status.PodIP
+//                localContainer.DmrPort = port.ContainerPort
+//                localPod.Containers = append(localPod.Containers, localContainer)
+                break
+            }
 		}
 	}
 	glog.V(2).Infof("found pod: %+v", localPod)
@@ -67,55 +72,6 @@ func (self *KubeSource) getPods() ([]Pod, error) {
 	return out, nil
 }
 
-func (self *KubeSource) getStatsFromJolokia(jolokiaUrl string) (*JolokiaStats, error) {
-	url := jolokiaUrl + "/jolokia/"
-	glog.V(2).Infof("Requesting jolokia stats from %s", url)
-
-	jolokiaRequests := []JolokiaRequest{
-		JVMRequest,
-	}
-
-	if amqRequests, err := GetAMQRequests(url); err == nil {
-		jolokiaRequests = append(jolokiaRequests, amqRequests...)
-	}
-
-	reqBody, err := json.Marshal(jolokiaRequests)
-	if err != nil {
-		return &JolokiaStats{}, err
-	}
-
-	glog.V(2).Infof("Sending Jolokia request: %v", string(reqBody))
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
-	if err != nil {
-		return &JolokiaStats{}, err
-	}
-	var jolokiaResponses []JolokiaResponse
-	err = PostRequestAndGetValue(&http.Client{}, req, &jolokiaResponses)
-	if err != nil {
-		glog.Errorf("failed to get stats from jolokia url: %s - %s\n", url, err)
-		return &JolokiaStats{}, nil
-	}
-
-	glog.V(2).Infof("Received jolokia response: %v", jolokiaResponses)
-
-	jolokiaResponseStats := make(map[string]JolokiaValue)
-
-	// Retrieve mbean stats
-	for _, jolokiaResponse := range jolokiaResponses {
-		jolokiaResponseStats[jolokiaResponse.Request["mbean"].(string)] = jolokiaResponse.Value
-	}
-
-	jolokiaStats := &JolokiaStats{
-		Timestamp: time.Unix(0, int64(jolokiaResponses[0].Timestamp)*int64(time.Second)),
-		Stats:     jolokiaResponseStats,
-	}
-
-	glog.V(2).Infof("Retrieved jolokia stats: %v", jolokiaStats)
-
-	return jolokiaStats, nil
-}
-
 func (self *KubeSource) GetInfo() (ContainerData, error) {
 	pods, err := self.getPods()
 	if err != nil {
@@ -123,11 +79,11 @@ func (self *KubeSource) GetInfo() (ContainerData, error) {
 	}
 	for _, pod := range pods {
 		for _, container := range pod.Containers {
-			stats, err := self.getStatsFromJolokia(fmt.Sprintf("http://%s:%d", pod.PodIP, 8778))
+            ctn := *container;
+            ctn.GetStats()
 			if err != nil {
 				return ContainerData{}, err
 			}
-			container.Stats = stats
 		}
 	}
 
