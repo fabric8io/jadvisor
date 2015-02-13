@@ -25,6 +25,7 @@ type Pod struct {
 }
 
 type Container interface {
+	GetName() (string)
     GetStats() (*StatsEntry ,error)
 }
 
@@ -49,7 +50,7 @@ type ContainerData struct {
 }
 
 type Source interface {
-	GetInfo() (ContainerData, error)
+	GetData() (ContainerData, error)
 }
 
 func NewSource() (Source, error) {

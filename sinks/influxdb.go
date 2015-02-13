@@ -92,16 +92,24 @@ func (self *InfluxdbSink) newSeries(tableName string, columns []string, points [
 	return out
 }
 
-func (self *InfluxdbSink) handlePods(pods []sources.Pod) {
+func (self *InfluxdbSink) handlePods(pods []sources.Pod) error {
 	for _, pod := range pods {
 		for _, container := range pod.Containers {
-			timestamp := container.Stats.Timestamp
-			for mbean, stats := range container.Stats.Stats {
-				col, val := self.containerStatsToValues(&pod, pod.Hostname, container.Name, timestamp, &stats)
-				self.series = append(self.series, self.newSeries(fmt.Sprintf("%s.%s.%s.%s", pod.Namespace, pod.Name, container.Name, mbean), col, val))
+			ctn := *container
+			stats, err := ctn.GetStats()
+
+			if (err != nil) {
+				return err
+			}
+
+			timestamp := stats.Timestamp;
+			for mbean, stats := range stats.Stats {
+				col, val := self.containerStatsToValues(&pod, pod.Hostname, ctn.GetName(), timestamp, &stats)
+				self.series = append(self.series, self.newSeries(fmt.Sprintf("%s.%s.%s.%s", pod.Namespace, pod.Name, ctn.GetName(), mbean), col, val))
 			}
 		}
 	}
+	return nil
 }
 
 func (self *InfluxdbSink) readyToFlush() bool {

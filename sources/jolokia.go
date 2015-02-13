@@ -43,8 +43,12 @@ type JolokiaContainer struct {
     Stats       *StatsEntry   `json:"stats,omitempty"`
 }
 
+func (self *JolokiaContainer) GetName() (string) {
+	return self.Name;
+}
+
 func (self *JolokiaContainer) GetStats() (*StatsEntry, error) {
-    url := fmt.Sprintf("http://") + "/jolokia/"
+    url := fmt.Sprintf("http://%s:%d", self.Name, self.JolokiaPort) + "/jolokia/"
     glog.V(2).Infof("Requesting jolokia stats from %s", url)
 
     jolokiaRequests := []JolokiaRequest{
