@@ -7,6 +7,10 @@ type DmrContainer struct {
     Stats       *StatsEntry   `json:"stats,omitempty"`
 }
 
+func (self *DmrContainer) GetName() (string) {
+	return self.Name;
+}
+
 func (self *DmrContainer) GetStats() (*StatsEntry, error) {
     return &StatsEntry{}, nil
 }
