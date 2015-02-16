@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
+	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 )
 
 var (
@@ -56,4 +57,9 @@ type Source interface {
 
 func NewSource() (Source, error) {
 	return newKubeSource()
+}
+
+type Environment interface {
+	GetHost(pod *kube_api.Pod, port kube_api.Port) string
+	GetPort(pod *kube_api.Pod, port kube_api.Port) int
 }
