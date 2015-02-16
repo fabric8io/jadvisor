@@ -36,16 +36,16 @@ func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
             if port.Name == "jolokia" || port.ContainerPort == 8778 {
                 localContainer := newJolokiaContainer()
                 localContainer.Name = container.Name
-                localContainer.Host = pod.Status.PodIP
-                localContainer.JolokiaPort = port.ContainerPort
+                localContainer.Host = pod.Status.Host // TODO
+                localContainer.JolokiaPort = port.HostPort // TODO
                 ctr := Container(localContainer)
                 localPod.Containers = append(localPod.Containers, &ctr)
                 break
             } else if port.Name == "eap" || port.ContainerPort == 9990 {
                 localContainer := newDmrContainer()
                 localContainer.Name = container.Name
-                localContainer.Host = pod.Status.PodIP
-                localContainer.DmrPort = port.ContainerPort
+                localContainer.Host = pod.Status.Host // TODO
+                localContainer.DmrPort = port.HostPort // TODO
                 ctr := Container(localContainer)
                 localPod.Containers = append(localPod.Containers, &ctr)
                 break
@@ -94,7 +94,7 @@ func newKubeSource() (*KubeSource, error) {
     }
     kubeClient := kube_client.NewOrDie(&kube_client.Config{
         Host:     os.ExpandEnv(*argMaster),
-        Version:  "v1beta2",
+        Version:  *argMasterVersion,
         Insecure: *argMasterInsecure,
     })
 

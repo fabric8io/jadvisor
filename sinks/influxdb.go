@@ -116,9 +116,9 @@ func (self *InfluxdbSink) readyToFlush() bool {
 	return time.Since(self.lastWrite) >= self.bufferDuration
 }
 
-func (self *InfluxdbSink) StoreData(ip Data) error {
+func (self *InfluxdbSink) StoreData(input Data) error {
 	var seriesToFlush []*influxdb.Series
-	if data, ok := ip.(sources.ContainerData); ok {
+	if data, ok := input.(sources.ContainerData); ok {
 		self.handlePods(data.Pods)
 	} else {
 		return fmt.Errorf("Requesting unrecognized type to be stored in InfluxDB")
