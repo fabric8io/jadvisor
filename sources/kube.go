@@ -31,21 +31,22 @@ func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
     for key, value := range pod.Labels {
         localPod.Labels[key] = value
     }
+	env := newEnvironment()
     for _, container := range pod.Spec.Containers {
         for _, port := range container.Ports {
             if port.Name == "jolokia" || port.ContainerPort == 8778 {
                 localContainer := newJolokiaContainer()
                 localContainer.Name = container.Name
-                localContainer.Host = pod.Status.Host // TODO
-                localContainer.JolokiaPort = port.HostPort // TODO
+                localContainer.Host = env.GetHost(pod, port)
+                localContainer.JolokiaPort = env.GetPort(pod, port)
                 ctr := Container(localContainer)
                 localPod.Containers = append(localPod.Containers, &ctr)
                 break
             } else if port.Name == "eap" || port.ContainerPort == 9990 {
                 localContainer := newDmrContainer()
                 localContainer.Name = container.Name
-                localContainer.Host = pod.Status.Host // TODO
-                localContainer.DmrPort = port.HostPort // TODO
+				localContainer.Host = env.GetHost(pod, port)
+				localContainer.DmrPort = env.GetPort(pod, port)
                 ctr := Container(localContainer)
                 localPod.Containers = append(localPod.Containers, &ctr)
                 break
