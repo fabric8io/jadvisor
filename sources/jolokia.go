@@ -48,7 +48,7 @@ func (self *JolokiaContainer) GetName() (string) {
 }
 
 func (self *JolokiaContainer) GetStats() (*StatsEntry, error) {
-    url := fmt.Sprintf("http://%s:%d", self.Name, self.JolokiaPort) + "/jolokia/"
+    url := fmt.Sprintf("http://%s:%d", self.Host, self.JolokiaPort) + "/jolokia/"
     glog.V(2).Infof("Requesting jolokia stats from %s", url)
 
     jolokiaRequests := []JolokiaRequest{
