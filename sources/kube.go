@@ -15,7 +15,7 @@ import (
 type KubeSource struct {
     client    *kube_client.Client
     lastQuery time.Time
-	env Environment
+	environment *Environment
 }
 
 func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
@@ -32,21 +32,24 @@ func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
     for key, value := range pod.Labels {
         localPod.Labels[key] = value
     }
+
+	env := *(self.environment)
+
     for _, container := range pod.Spec.Containers {
         for _, port := range container.Ports {
             if port.Name == "jolokia" || port.ContainerPort == 8778 {
                 localContainer := newJolokiaContainer()
                 localContainer.Name = container.Name
-                localContainer.Host = self.env.GetHost(pod, port)
-                localContainer.JolokiaPort = self.env.GetPort(pod, port)
+                localContainer.Host = env.GetHost(pod, port)
+                localContainer.JolokiaPort = env.GetPort(pod, port)
                 ctr := Container(localContainer)
                 localPod.Containers = append(localPod.Containers, &ctr)
                 break
             } else if port.Name == "eap" || port.ContainerPort == 9990 {
                 localContainer := newDmrContainer()
                 localContainer.Name = container.Name
-				localContainer.Host = self.env.GetHost(pod, port)
-				localContainer.DmrPort = self.env.GetPort(pod, port)
+				localContainer.Host = env.GetHost(pod, port)
+				localContainer.DmrPort = env.GetPort(pod, port)
                 ctr := Container(localContainer)
                 localPod.Containers = append(localPod.Containers, &ctr)
                 break
@@ -102,6 +105,6 @@ func newKubeSource() (*KubeSource, error) {
     return &KubeSource{
         client:    kubeClient,
         lastQuery: time.Now(),
-		env: newEnvironment(),
+		environment: newEnvironment(),
     }, nil
 }
