@@ -7,34 +7,38 @@ import (
 
 var jubeEnv = flag.Bool("jube", false, "Are we running in Jube?")
 
-func newEnvironment() Environment {
+func newEnvironment() *Environment {
 	isJube := *jubeEnv // TODO -- any better way then flag?
 
 	if isJube {
-		return Jube{}
+		jube := new(Jube)
+		env := Environment(jube)
+		return &env;
 	} else {
-		return Kubernetes{}
+		kube := new(Kubernetes)
+		env := Environment(kube)
+		return &env;
 	}
 }
 
 type Jube struct {
 }
 
-func (self Jube) GetHost(pod *kube_api.Pod, port kube_api.Port) string {
+func (self *Jube) GetHost(pod *kube_api.Pod, port kube_api.Port) string {
 	return pod.Status.Host;
 }
 
-func (self Jube) GetPort(pod *kube_api.Pod, port kube_api.Port) int {
+func (self *Jube) GetPort(pod *kube_api.Pod, port kube_api.Port) int {
 	return port.HostPort
 }
 
 type Kubernetes struct {
 }
 
-func (self Kubernetes) GetHost(pod *kube_api.Pod, port kube_api.Port) string {
+func (self *Kubernetes) GetHost(pod *kube_api.Pod, port kube_api.Port) string {
 	return pod.Status.PodIP;
 }
 
-func (self Kubernetes) GetPort(pod *kube_api.Pod, port kube_api.Port) int {
+func (self *Kubernetes) GetPort(pod *kube_api.Pod, port kube_api.Port) int {
 	return port.ContainerPort
 }
