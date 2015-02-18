@@ -98,11 +98,11 @@ func (self *InfluxdbSink) handlePods(pods []sources.Pod) error {
 			ctn := *container
 			stats, err := ctn.GetStats()
 
-			if (err != nil) {
+			if err != nil {
 				return err
 			}
 
-			timestamp := stats.Timestamp;
+			timestamp := stats.Timestamp
 			for mbean, stats := range stats.Stats {
 				col, val := self.containerStatsToValues(&pod, pod.Hostname, ctn.GetName(), timestamp, &stats)
 				self.series = append(self.series, self.newSeries(fmt.Sprintf("%s.%s.%s.%s", pod.Namespace, pod.Name, ctn.GetName(), mbean), col, val))

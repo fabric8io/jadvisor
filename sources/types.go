@@ -4,8 +4,8 @@ import (
 	"flag"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
 	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
 )
 
 var (
@@ -27,14 +27,14 @@ type Pod struct {
 }
 
 type Container interface {
-	GetName() (string)
-    GetStats() (*StatsEntry ,error)
+	GetName() string
+	GetStats() (*StatsEntry, error)
 }
 
 type StatsEntry struct {
 	// The time of this stat point.
-	Timestamp time.Time               `json:"timestamp"`
-	Stats     map[string]StatsValue   `json:"stats,omitempty"`
+	Timestamp time.Time             `json:"timestamp"`
+	Stats     map[string]StatsValue `json:"stats,omitempty"`
 }
 
 type StatsValue map[string]interface{}
