@@ -19,6 +19,10 @@ dependencies:
 test:
   override:
     - cd $HOME/jadvisor/src/github.com/fabric8io/jadvisor && godep go test ./...
+    - |
+      cd $HOME/jadvisor/src/github.com/fabric8io/jadvisor && \
+      formatted="$(go fmt ./...)" && \
+      ( ( [[ -n $formatted ]] && echo "gofmt failed on the following files:" && echo -ne $formatted && exit 1) || (( [[ -z $formatted ]] && echo "gofmt passed")  ) )
 
 deployment:
   hub:
