@@ -28,7 +28,7 @@ type InfluxdbSink struct {
 	lastWrite      time.Time
 }
 
-func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, containerName string, timestamp time.Time, stats *sources.JolokiaValue) (columns []string, values []interface{}) {
+func (self *InfluxdbSink) containerStatsToValues(pod *sources.Pod, hostname, containerName string, timestamp time.Time, stats *sources.StatsValue) (columns []string, values []interface{}) {
 	// Timestamp
 	columns = append(columns, colTimestamp)
 	values = append(values, timestamp.Unix())
@@ -92,25 +92,33 @@ func (self *InfluxdbSink) newSeries(tableName string, columns []string, points [
 	return out
 }
 
-func (self *InfluxdbSink) handlePods(pods []sources.Pod) {
+func (self *InfluxdbSink) handlePods(pods []sources.Pod) error {
 	for _, pod := range pods {
 		for _, container := range pod.Containers {
-			timestamp := container.Stats.Timestamp
-			for mbean, stats := range container.Stats.Stats {
-				col, val := self.containerStatsToValues(&pod, pod.Hostname, container.Name, timestamp, &stats)
-				self.series = append(self.series, self.newSeries(fmt.Sprintf("%s.%s.%s.%s", pod.Namespace, pod.Name, container.Name, mbean), col, val))
+			ctn := *container
+			stats, err := ctn.GetStats()
+
+			if (err != nil) {
+				return err
+			}
+
+			timestamp := stats.Timestamp;
+			for mbean, stats := range stats.Stats {
+				col, val := self.containerStatsToValues(&pod, pod.Hostname, ctn.GetName(), timestamp, &stats)
+				self.series = append(self.series, self.newSeries(fmt.Sprintf("%s.%s.%s.%s", pod.Namespace, pod.Name, ctn.GetName(), mbean), col, val))
 			}
 		}
 	}
+	return nil
 }
 
 func (self *InfluxdbSink) readyToFlush() bool {
 	return time.Since(self.lastWrite) >= self.bufferDuration
 }
 
-func (self *InfluxdbSink) StoreData(ip Data) error {
+func (self *InfluxdbSink) StoreData(input Data) error {
 	var seriesToFlush []*influxdb.Series
-	if data, ok := ip.(sources.ContainerData); ok {
+	if data, ok := input.(sources.ContainerData); ok {
 		self.handlePods(data.Pods)
 	} else {
 		return fmt.Errorf("Requesting unrecognized type to be stored in InfluxDB")

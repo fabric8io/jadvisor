@@ -26,7 +26,7 @@ func GetAMQRequests(url string) ([]JolokiaRequest, error) {
 		return []JolokiaRequest{}, err
 	}
 
-	glog.V(2).Infof("Sending Jolokia request: %v", string(reqBody))
+	glog.Infof("Sending Jolokia request: %v", string(reqBody))
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
 	if err != nil {

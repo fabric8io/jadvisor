@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
+	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 )
 
 var (
 	argMaster         = flag.String("kubernetes_master", "https://localhost:8443", "Kubernetes master address")
+	argMasterVersion  = flag.String("kubernetes_version", "v1beta2", "Kubernetes api version")
 	argMasterInsecure = flag.Bool("kubernetes_insecure", false, "Trust Kubernetes master certificate (if using https)")
 )
 
@@ -24,48 +26,25 @@ type Pod struct {
 	Labels     map[string]string `json:"labels,omitempty"`
 }
 
-type Container struct {
-	Name        string        `json:"name,omitempty"`
-	JolokiaPort int           `json:"jolokiaPort"`
-	Stats       *JolokiaStats `json:"stats,omitempty"`
+type Container interface {
+	GetName() (string)
+    GetStats() (*StatsEntry ,error)
 }
 
-type JolokiaRequestType string
-
-const (
-	Search JolokiaRequestType = "search"
-	Read   JolokiaRequestType = "read"
-	List   JolokiaRequestType = "list"
-	Exec   JolokiaRequestType = "exec"
-	Write  JolokiaRequestType = "write"
-)
-
-type JolokiaRequest struct {
-	Type      JolokiaRequestType `json:"type"`
-	MBean     string             `json:"mbean,omitempty"`
-	Attribute interface{}        `json:"attribute,omitempty"`
-	Path      string             `json:"path,omitempty"`
-	MaxDepth  uint               `json:"maxDepth,omitempty"`
-}
-
-type JolokiaResponse struct {
-	Status    uint32
-	Timestamp uint32
-	Request   map[string]interface{}
-	Value     JolokiaValue
-	Error     string
-}
-
-type JolokiaStats struct {
+type StatsEntry struct {
 	// The time of this stat point.
 	Timestamp time.Time               `json:"timestamp"`
-	Stats     map[string]JolokiaValue `json:"stats,omitempty"`
+	Stats     map[string]StatsValue   `json:"stats,omitempty"`
 }
 
-type JolokiaValue map[string]interface{}
+type StatsValue map[string]interface{}
 
-func newContainer() *Container {
-	return &Container{Stats: &JolokiaStats{}}
+func newJolokiaContainer() *JolokiaContainer {
+	return &JolokiaContainer{Stats: &StatsEntry{}}
+}
+
+func newDmrContainer() *DmrContainer {
+	return &DmrContainer{Stats: &StatsEntry{}}
 }
 
 type ContainerData struct {
@@ -73,9 +52,14 @@ type ContainerData struct {
 }
 
 type Source interface {
-	GetInfo() (ContainerData, error)
+	GetData() (ContainerData, error)
 }
 
 func NewSource() (Source, error) {
 	return newKubeSource()
+}
+
+type Environment interface {
+	GetHost(pod *kube_api.Pod, port kube_api.Port) string
+	GetPort(pod *kube_api.Pod, port kube_api.Port) int
 }

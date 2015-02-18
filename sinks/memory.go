@@ -5,8 +5,8 @@ import (
 	"flag"
 	"time"
 
-	"github.com/fabric8io/jadvisor/sources"
-)
+	"github.com/golang/glog"
+	"github.com/fabric8io/jadvisor/sources")
 
 var argMaxStorageDuration = flag.Duration("sink_memory_ttl", 1*time.Hour, "Time duration for which stats should be cached if the memory sink is used")
 
@@ -28,9 +28,31 @@ func (self *MemorySink) reapOldData() {
 	// TODO(vishh): Reap old data.
 }
 
-func (self *MemorySink) StoreData(data Data) error {
-	if data, ok := data.([]sources.Pod); ok {
-		for _, value := range data {
+func (self *MemorySink) handlePods(pods []sources.Pod) error {
+	for _, pod := range pods {
+		for _, container := range pod.Containers {
+			ctn := *container
+			stats, err := ctn.GetStats()
+
+			if (err != nil) {
+				return err
+			}
+
+			for mbean, stats := range stats.Stats {
+				glog.Infof("%s -> %s", mbean, stats)
+			}
+		}
+	}
+	return nil
+}
+
+func (self *MemorySink) StoreData(input Data) error {
+	glog.Info("Storing data ...")
+	if data, ok := input.(sources.ContainerData); ok {
+
+		self.handlePods(data.Pods)
+
+		for _, value := range data.Pods {
 			self.containersData.PushFront(entry{time.Now(), value})
 			if self.containersData.Len() == 1 {
 				self.oldestData = time.Now()
