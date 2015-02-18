@@ -5,12 +5,10 @@ import (
 
 	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api")
 
-var jubeEnv = flag.Bool("jube", false, "Are we running in Jube?")
+var jubeEnv = flag.Bool("jube", false, "Are we running Jube?")
 
 func newEnvironment() *Environment {
-	isJube := *jubeEnv // TODO -- any better way then flag?
-
-	if isJube {
+	if isJube() {
 		jube := new(Jube)
 		env := Environment(jube)
 		return &env;
@@ -19,6 +17,10 @@ func newEnvironment() *Environment {
 		env := Environment(kube)
 		return &env;
 	}
+}
+
+func isJube() bool {
+	return *jubeEnv;  // TODO -- any better way then flag?
 }
 
 type Jube struct {
