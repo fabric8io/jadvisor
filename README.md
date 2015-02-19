@@ -1,7 +1,7 @@
 # jAdvisor [![Circle CI](https://circleci.com/gh/fabric8io/jadvisor.svg?style=svg)](https://circleci.com/gh/fabric8io/jadvisor)
 
-jAdvisor is here to help you gather metrics from your [Jolokia](http://jolokia.org/) enabled
-[Docker](https://docker.com/) containers running in your Kubernetes environment.
+jAdvisor is here to help you gather metrics from your [Jolokia](http://jolokia.org/) and [DMR](https://github.com/jbossas/jboss-dmr) enabled
+[Docker](https://docker.com/) containers running in your [Kubernetes](https://github.com/googlecloudplatform/kubernetes) (or [Jube](https://github.com/jubeio/jube)) environment.
 
 ## Running
 
@@ -24,6 +24,7 @@ Usage of ./stage/jadvisor:
   -stderrthreshold=0: logs at or above this threshold go to stderr
   -v=0: log level for V logs
   -vmodule=: comma-separated list of pattern=N settings for file-filtered logging
+  -jube=true: to force Jube usage
 ```
 
 ## Building
