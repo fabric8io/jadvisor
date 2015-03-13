@@ -14,10 +14,49 @@ type DmrContainer struct {
 	Stats   *StatsEntry `json:"stats,omitempty"`
 }
 
-type DmrRequest struct {
-	operation 	string	`json:"operation"`
-	name      	string	`json:"name"`
-	pretty		int		`json:"json.pretty"`
+type DmrAttributeRequest struct {
+	Operation 	string	`json:"operation"`
+	Name      	string	`json:"name"`
+	Pretty		int		`json:"json.pretty"`
+}
+
+type DmrResourceRequest struct {
+	Operation 			string		`json:"operation"`
+	IncludeRuntime      bool		`json:"include-runtime"`
+	Address				[]string	`json:"address"`
+	Pretty				int			`json:"json.pretty"`
+}
+
+type DmrResponse struct {
+	Outcome 				string		`json:"outcome"`
+	Result      			interface{}	`json:"result"`
+	FailureDescription      string		`json:"failure-description"`
+	RolledBacked      		bool		`json:"rolled-back"`
+}
+
+type WebResult struct {
+	BytesReceived		int64		`json:"bytesReceived"`
+	BytesSent			int64		`json:"bytesSent"`
+	EnableLookups		string		`json:"enable-lookups"`
+	Enabled				string		`json:"enabled"`
+	ErrorCount			int			`json:"errorCount"`
+	Executor			string		`json:"executor"`
+	MaxConnections		int			`json:"max-connections"`
+	MaxPostSize			int64		`json:"max-post-size"`
+	MaxSavePostSize		int64		`json:"max-save-post-size"`
+	MaxTime				int64		`json:"maxTime"`
+	Name				string		`json:"name"`
+	ProcessingTime		int64		`json:"processingTime"`
+	Protocol			string		`json:"protocol"`
+	ProxyName			string		`json:"proxy-name"`
+	ProxyPort			string		`json:"proxy-port"`
+	RedirectPort		int			`json:"redirect-port"`
+	RequestCount		int64		`json:"requestCount"`
+	Scheme				string		`json:"scheme"`
+	Secure				string		`json:"secure"`
+	SocketBinding		string		`json:"socket-binding"`
+	SSL					string		`json:"ssl"`
+	VirtualServer		string		`json:"virtual-server"`
 }
 
 func (self *DmrContainer) GetName() string {
@@ -25,39 +64,46 @@ func (self *DmrContainer) GetName() string {
 }
 
 func (self *DmrContainer) GetStats() (*StatsEntry, error) {
-	dmrRequest := DmrRequest{
-		operation: "read-attribute",
-		name: "server-state",
-		pretty: 1,
+	dmrRequest := DmrResourceRequest{
+		Operation: "read-resource",
+		IncludeRuntime: true,
+		Address: []string{"subsystem", "undertow", "server", "default-server", "http-listener", "default"},
+		Pretty: 1,
 	}
-	jsonMap, err := self.getStats(dmrRequest)
+
+	dmrResponse := DmrResponse{
+		Result: WebResult{},
+	}
+
+	err := self.getStats(&dmrRequest, &dmrResponse)
 	if err != nil {
 		return nil, err
 	}
-	glog.Info(jsonMap)
+
+	glog.Infof("outcome: %s, result: %s, failure: %s", dmrResponse.Outcome, dmrResponse.Result, dmrResponse.FailureDescription)
 
 	return &StatsEntry{}, nil
 }
 
-func (self *DmrContainer) getStats(dmrRequest DmrRequest) (map[string]string, error) {
-	reqBody, err := json.Marshal(dmrRequest)
+func (self *DmrContainer) getStats(request interface{}, result interface{}) error {
+	reqBody, err := json.Marshal(request)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	url := fmt.Sprintf("http://%s:%d/management", self.Host, self.DmrPort)
-	req, err := http.NewRequest("GET", url, bytes.NewBuffer(reqBody))
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	req.Header.Add("Content-Type", "application/json")
 
-	var jsonMap map[string]string
-	err = PostRequestAndGetValue(&http.Client{}, req, jsonMap)
+	err = PostRequestAndGetValue(&http.Client{}, req, result)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return jsonMap, nil
+	return nil
 }
