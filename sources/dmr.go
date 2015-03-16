@@ -35,25 +35,25 @@ type DmrResponse struct {
 }
 
 type WebResult struct {
-	BytesReceived		int64		`json:"bytesReceived"`
-	BytesSent			int64		`json:"bytesSent"`
-	EnableLookups		string		`json:"enable-lookups"`
-	Enabled				string		`json:"enabled"`
-	ErrorCount			int			`json:"errorCount"`
+	BytesReceived		string		`json:"bytesReceived"`
+	BytesSent			string		`json:"bytesSent"`
+	EnableLookups		bool		`json:"enable-lookups"`
+	Enabled				bool		`json:"enabled"`
+	ErrorCount			string		`json:"errorCount"`
 	Executor			string		`json:"executor"`
 	MaxConnections		int			`json:"max-connections"`
 	MaxPostSize			int64		`json:"max-post-size"`
 	MaxSavePostSize		int64		`json:"max-save-post-size"`
-	MaxTime				int64		`json:"maxTime"`
+	MaxTime				string		`json:"maxTime"`
 	Name				string		`json:"name"`
-	ProcessingTime		int64		`json:"processingTime"`
+	ProcessingTime		string		`json:"processingTime"`
 	Protocol			string		`json:"protocol"`
 	ProxyName			string		`json:"proxy-name"`
 	ProxyPort			string		`json:"proxy-port"`
 	RedirectPort		int			`json:"redirect-port"`
-	RequestCount		int64		`json:"requestCount"`
+	RequestCount		string		`json:"requestCount"`
 	Scheme				string		`json:"scheme"`
-	Secure				string		`json:"secure"`
+	Secure				bool		`json:"secure"`
 	SocketBinding		string		`json:"socket-binding"`
 	SSL					string		`json:"ssl"`
 	VirtualServer		string		`json:"virtual-server"`
@@ -71,8 +71,9 @@ func (self *DmrContainer) GetStats() (*StatsEntry, error) {
 		Pretty: 1,
 	}
 
+	wr := WebResult{}
 	dmrResponse := DmrResponse{
-		Result: WebResult{},
+		Result: &wr,
 	}
 
 	err := self.getStats(&dmrRequest, &dmrResponse)
@@ -80,6 +81,7 @@ func (self *DmrContainer) GetStats() (*StatsEntry, error) {
 		return nil, err
 	}
 
+	glog.Infof("result: %s", wr.RequestCount)
 	glog.Infof("outcome: %s, result: %s, failure: %s", dmrResponse.Outcome, dmrResponse.Result, dmrResponse.FailureDescription)
 
 	return &StatsEntry{}, nil
