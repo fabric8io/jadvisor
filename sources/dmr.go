@@ -67,7 +67,7 @@ func (self *DmrContainer) GetStats() (*StatsEntry, error) {
 	dmrRequest := DmrResourceRequest{
 		Operation: "read-resource",
 		IncludeRuntime: true,
-		Address: []string{"subsystem", "undertow", "server", "default-server", "http-listener", "default"},
+		Address: []string{"subsystem", "web", "connector", "http"},
 		Pretty: 1,
 	}
 
