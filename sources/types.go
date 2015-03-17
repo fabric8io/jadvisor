@@ -6,7 +6,8 @@ import (
 
 	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
-)
+	"encoding/json"
+	"strconv")
 
 var (
 	argMaster         = flag.String("kubernetes_master", "https://localhost:8443", "Kubernetes master address")
@@ -62,4 +63,27 @@ func NewSource() (Source, error) {
 type Environment interface {
 	GetHost(pod *kube_api.Pod, port kube_api.Port) string
 	GetPort(pod *kube_api.Pod, port kube_api.Port) int
+}
+
+type StringInt struct {
+	Value int
+}
+
+// UnmarshalJSON implements the json.Unmarshaller interface.
+func (strint *StringInt) UnmarshalJSON(value []byte) error {
+	if value[0] == '"' {
+		arr := value[1:len(value)-1]
+		return json.Unmarshal(arr, &strint.Value)
+	}
+	return json.Unmarshal(value, &strint.Value)
+}
+
+// String returns the string value, or Itoa's the int value.
+func (strint *StringInt) String() string {
+	return strconv.Itoa(strint.Value)
+}
+
+// MarshalJSON implements the json.Marshaller interface.
+func (strint StringInt) MarshalJSON() ([]byte, error) {
+	return json.Marshal(strint.Value)
 }
