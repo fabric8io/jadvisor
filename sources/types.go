@@ -13,6 +13,10 @@ var (
 	argMaster         = flag.String("kubernetes_master", "https://localhost:8443", "Kubernetes master address")
 	argMasterVersion  = flag.String("kubernetes_version", "v1beta2", "Kubernetes api version")
 	argMasterInsecure = flag.Bool("kubernetes_insecure", false, "Trust Kubernetes master certificate (if using https)")
+
+	certFile = flag.String("cert", "/opt/openshift/origin/openshift.local.certificates/admin/cert.crt", "A PEM eoncoded certificate file.")
+	keyFile  = flag.String("key", "/opt/openshift/origin/openshift.local.certificates/admin/key.key", "A PEM encoded private key file.")
+	caFile   = flag.String("CA", "/opt/openshift/origin/openshift.local.certificates/master/root.crt", "A PEM encoded CA's certificate file.")
 )
 
 // PodState is the state of a pod, used as either input (desired state) or output (current state)
