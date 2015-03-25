@@ -27,7 +27,7 @@ func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
 		Hostname:   pod.Status.Host,
 		Status:     string(pod.Status.Phase),
 		Labels:     make(map[string]string, 0),
-		Containers: make([]*Container, 0),
+		Containers: make([]Container, 0),
 	}
 	for key, value := range pod.Labels {
 		localPod.Labels[key] = value
@@ -42,16 +42,14 @@ func (self *KubeSource) parsePod(pod *kube_api.Pod) *Pod {
 				localContainer.Name = container.Name
 				localContainer.Host = env.GetHost(pod, port)
 				localContainer.JolokiaPort = env.GetPort(pod, port)
-				ctr := Container(localContainer)
-				localPod.Containers = append(localPod.Containers, &ctr)
+				localPod.Containers = append(localPod.Containers, localContainer)
 				break
 			} else if port.Name == "mgmt" || port.ContainerPort == 9990 {
 				localContainer := newDmrContainer()
 				localContainer.Name = container.Name
 				localContainer.Host = env.GetHost(pod, port)
 				localContainer.DmrPort = env.GetPort(pod, port)
-				ctr := Container(localContainer)
-				localPod.Containers = append(localPod.Containers, &ctr)
+				localPod.Containers = append(localPod.Containers, localContainer)
 				break
 			}
 		}
