@@ -20,7 +20,7 @@ type Pod struct {
 	Name       string            `json:"name,omitempty"`
 	ID         types.UID         `json:"id,omitempty"`
 	Hostname   string            `json:"hostname,omitempty"`
-	Containers []*Container      `json:"containers"`
+	Containers []Container       `json:"containers"`
 	Status     string            `json:"status,omitempty"`
 	PodIP      string            `json:"podIP,omitempty"`
 	Labels     map[string]string `json:"labels,omitempty"`

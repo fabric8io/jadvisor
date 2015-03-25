@@ -32,8 +32,7 @@ func (self *MemorySink) reapOldData() {
 func (self *MemorySink) handlePods(pods []sources.Pod) error {
 	for _, pod := range pods {
 		for _, container := range pod.Containers {
-			ctn := *container
-			stats, err := ctn.GetStats()
+			stats, err := container.GetStats()
 
 			if err != nil {
 				return err
