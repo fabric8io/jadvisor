@@ -83,7 +83,41 @@ func (self *DmrContainer) GetStats() (*StatsEntry, error) {
 
 	glog.Infof("outcome: %s, result: %s, failure: %s", dmrResponse.Outcome, dmrResponse.Result, dmrResponse.FailureDescription)
 
-	return &StatsEntry{}, nil
+	dmrStats := make(map[string]interface{})
+	dmrStats["bytes_received"] = wr.BytesReceived
+	dmrStats["bytes_sent"] = wr.BytesSent
+	dmrStats["enable_lookups"] = wr.EnableLookups
+	dmrStats["enabled"] = wr.Enabled
+	dmrStats["error_count"] = wr.ErrorCount
+	dmrStats["executor"] = wr.Executor
+	dmrStats["max_connections"] = wr.MaxConnections
+	dmrStats["max_post_size"] = wr.MaxPostSize
+	dmrStats["max_save_post_size"] = wr.MaxSavePostSize
+	dmrStats["max_time"] = wr.MaxTime
+	dmrStats["name"] = wr.Name
+	dmrStats["processing_time"] = wr.ProcessingTime
+	dmrStats["protocol"] = wr.Protocol
+	dmrStats["proxy_name"] = wr.ProxyName
+	dmrStats["proxy_port"] = wr.ProxyPort
+	dmrStats["redirect_port"] = wr.RedirectPort
+	dmrStats["request_count"] = wr.RequestCount
+	dmrStats["scheme"] = wr.Scheme
+	dmrStats["secure"] = wr.Secure
+	dmrStats["socket_binding"] = wr.SocketBinding
+	dmrStats["ssl"] = wr.SSL
+	dmrStats["virtual_server"] = wr.VirtualServer
+	
+	responseStats := make(map[string]StatsValue)
+	responseStats["dmr"] = dmrStats
+	
+	result := &StatsEntry {
+		Timestamp: time.Now().Local(),
+		Stats:     responseStats,
+	}
+	
+	glog.V(2).Infof("Retrieved DMR stats: %v", dmrStats)
+
+	return result, nil
 }
 
 func (self *DmrContainer) getStats(request interface{}, result interface{}) error {
