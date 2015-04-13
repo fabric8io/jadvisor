@@ -36,10 +36,10 @@ func (self *MemorySink) handlePods(pods []sources.Pod) {
 
 			if err != nil {
 				glog.Errorf("Error getting container [%s] stats: %s", container.GetName(), err)
-			}
-
-			for mbean, stats := range stats.Stats {
-				glog.Infof("%s -> %s", mbean, stats)
+			} else {
+				for mbean, stats := range stats.Stats {
+					glog.Infof("%s -> %s", mbean, stats)
+				}
 			}
 		}
 	}
