@@ -29,21 +29,20 @@ func (self *MemorySink) reapOldData() {
 	// TODO(vishh): Reap old data.
 }
 
-func (self *MemorySink) handlePods(pods []sources.Pod) error {
+func (self *MemorySink) handlePods(pods []sources.Pod) {
 	for _, pod := range pods {
 		for _, container := range pod.Containers {
 			stats, err := container.GetStats()
 
 			if err != nil {
-				return err
-			}
-
-			for mbean, stats := range stats.Stats {
-				glog.Infof("%s -> %s", mbean, stats)
+				glog.Errorf("Error getting container [%s] stats: %s", container.GetName(), err)
+			} else {
+				for mbean, stats := range stats.Stats {
+					glog.Infof("%s -> %s", mbean, stats)
+				}
 			}
 		}
 	}
-	return nil
 }
 
 func (self *MemorySink) StoreData(input Data) error {
