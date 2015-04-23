@@ -6,14 +6,15 @@ import (
 	"strings"
 	"time"
 
+	"crypto/tls"
+	"crypto/x509"
 	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	kube_client "github.com/GoogleCloudPlatform/kubernetes/pkg/client"
 	kube_labels "github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/golang/glog"
+	"io/ioutil"
 	"net/http"
-	"crypto/tls"
-	"crypto/x509"
-	"io/ioutil")
+)
 
 type KubeSource struct {
 	client      *kube_client.Client
@@ -126,8 +127,8 @@ func createTransport() (*http.Transport, error) {
 func newKubeClient(transport *http.Transport) *kube_client.Client {
 	if transport != nil {
 		return kube_client.NewOrDie(&kube_client.Config{
-			Host:     os.ExpandEnv(*argMaster),
-			Version:  *argMasterVersion,
+			Host:      os.ExpandEnv(*argMaster),
+			Version:   *argMasterVersion,
 			Transport: transport,
 		})
 	} else {

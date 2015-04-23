@@ -1,12 +1,13 @@
 package sources
 
 import (
-	"net/http"
-	"fmt"
-	"encoding/json"
-	"github.com/golang/glog"
 	"bytes"
-	"time")
+	"encoding/json"
+	"fmt"
+	"github.com/golang/glog"
+	"net/http"
+	"time"
+)
 
 type DmrContainer struct {
 	Name    string      `json:"name,omitempty"`
@@ -16,48 +17,48 @@ type DmrContainer struct {
 }
 
 type DmrAttributeRequest struct {
-	Operation 	string	`json:"operation"`
-	Name      	string	`json:"name"`
-	Pretty		int		`json:"json.pretty"`
+	Operation string `json:"operation"`
+	Name      string `json:"name"`
+	Pretty    int    `json:"json.pretty"`
 }
 
 type DmrResourceRequest struct {
-	Operation 			string		`json:"operation"`
-	IncludeRuntime      bool		`json:"include-runtime"`
-	Address				[]string	`json:"address"`
-	Pretty				int			`json:"json.pretty"`
+	Operation      string   `json:"operation"`
+	IncludeRuntime bool     `json:"include-runtime"`
+	Address        []string `json:"address"`
+	Pretty         int      `json:"json.pretty"`
 }
 
 type DmrResponse struct {
-	Outcome 				string		`json:"outcome"`
-	Result      			interface{}	`json:"result"`
-	FailureDescription      string		`json:"failure-description"`
-	RolledBacked      		bool		`json:"rolled-back"`
+	Outcome            string      `json:"outcome"`
+	Result             interface{} `json:"result"`
+	FailureDescription string      `json:"failure-description"`
+	RolledBacked       bool        `json:"rolled-back"`
 }
 
 type WebResult struct {
-	BytesReceived		StringInt			`json:"bytesReceived"`
-	BytesSent			StringInt			`json:"bytesSent"`
-	EnableLookups		bool				`json:"enable-lookups"`
-	Enabled				bool				`json:"enabled"`
-	ErrorCount			StringInt			`json:"errorCount"`
-	Executor			string				`json:"executor"`
-	MaxConnections		int					`json:"max-connections"`
-	MaxPostSize			int64				`json:"max-post-size"`
-	MaxSavePostSize		int64				`json:"max-save-post-size"`
-	MaxTime				StringInt			`json:"maxTime"`
-	Name				string				`json:"name"`
-	ProcessingTime		StringInt			`json:"processingTime"`
-	Protocol			string				`json:"protocol"`
-	ProxyName			string				`json:"proxy-name"`
-	ProxyPort			string				`json:"proxy-port"`
-	RedirectPort		int					`json:"redirect-port"`
-	RequestCount		StringInt			`json:"requestCount"`
-	Scheme				string				`json:"scheme"`
-	Secure				bool				`json:"secure"`
-	SocketBinding		string				`json:"socket-binding"`
-	SSL					string				`json:"ssl"`
-	VirtualServer		string				`json:"virtual-server"`
+	BytesReceived   StringInt `json:"bytesReceived"`
+	BytesSent       StringInt `json:"bytesSent"`
+	EnableLookups   bool      `json:"enable-lookups"`
+	Enabled         bool      `json:"enabled"`
+	ErrorCount      StringInt `json:"errorCount"`
+	Executor        string    `json:"executor"`
+	MaxConnections  int       `json:"max-connections"`
+	MaxPostSize     int64     `json:"max-post-size"`
+	MaxSavePostSize int64     `json:"max-save-post-size"`
+	MaxTime         StringInt `json:"maxTime"`
+	Name            string    `json:"name"`
+	ProcessingTime  StringInt `json:"processingTime"`
+	Protocol        string    `json:"protocol"`
+	ProxyName       string    `json:"proxy-name"`
+	ProxyPort       string    `json:"proxy-port"`
+	RedirectPort    int       `json:"redirect-port"`
+	RequestCount    StringInt `json:"requestCount"`
+	Scheme          string    `json:"scheme"`
+	Secure          bool      `json:"secure"`
+	SocketBinding   string    `json:"socket-binding"`
+	SSL             string    `json:"ssl"`
+	VirtualServer   string    `json:"virtual-server"`
 }
 
 func (self *DmrContainer) GetName() string {
@@ -66,10 +67,10 @@ func (self *DmrContainer) GetName() string {
 
 func (self *DmrContainer) GetStats() (*StatsEntry, error) {
 	dmrRequest := DmrResourceRequest{
-		Operation: "read-resource",
+		Operation:      "read-resource",
 		IncludeRuntime: true,
-		Address: []string{"subsystem", "web", "connector", "http"},
-		Pretty: 1,
+		Address:        []string{"subsystem", "web", "connector", "http"},
+		Pretty:         1,
 	}
 
 	wr := WebResult{}
@@ -107,15 +108,15 @@ func (self *DmrContainer) GetStats() (*StatsEntry, error) {
 	dmrStats["socket_binding"] = wr.SocketBinding
 	dmrStats["ssl"] = wr.SSL
 	dmrStats["virtual_server"] = wr.VirtualServer
-	
+
 	responseStats := make(map[string]StatsValue)
 	responseStats["dmr"] = dmrStats
-	
-	result := &StatsEntry {
+
+	result := &StatsEntry{
 		Timestamp: time.Now().Local(),
 		Stats:     responseStats,
 	}
-	
+
 	glog.V(2).Infof("Retrieved DMR stats: %v", dmrStats)
 
 	return result, nil

@@ -40,7 +40,7 @@ func GetAMQRequests(url string) ([]JolokiaRequest, error) {
 	}
 
 	var requests []JolokiaRequest
-	for key, _ := range jolokiaResponse.Value {
+	for key := range jolokiaResponse.Value {
 		requests = append(requests, JolokiaRequest{
 			Type:  Read,
 			MBean: fmt.Sprintf("%s:%s", AMQDefaultDomain, key),

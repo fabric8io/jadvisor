@@ -4,10 +4,11 @@ import (
 	"flag"
 	"time"
 
+	"encoding/json"
 	kube_api "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
-	"encoding/json"
-	"strconv")
+	"strconv"
+)
 
 var (
 	argMaster         = flag.String("kubernetes_master", "https://localhost:8443", "Kubernetes master address")
@@ -76,7 +77,7 @@ type StringInt struct {
 // UnmarshalJSON implements the json.Unmarshaller interface.
 func (strint *StringInt) UnmarshalJSON(value []byte) error {
 	if value[0] == '"' {
-		arr := value[1:len(value)-1]
+		arr := value[1 : len(value)-1]
 		return json.Unmarshal(arr, &strint.Value)
 	}
 	return json.Unmarshal(value, &strint.Value)
